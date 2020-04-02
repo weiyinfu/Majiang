@@ -1,0 +1,96 @@
+html, body, #app {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.Index {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+
+  .left {
+    width: 70%;
+    height: 100%;
+    overflow: auto;
+    padding: 10px;
+    box-sizing: border-box;
+  }
+
+  .right {
+    width: 30%;
+    height: 100%;
+    overflow: auto;
+  }
+}
+
+
+.cardList {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+
+  & > div {
+    display: flex;
+  }
+
+  .Card {
+    font-size: 40px;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+
+  .mine {
+    //我的手牌
+    font-size: 70px;
+  }
+
+  .lastFetch {
+    //上一次摸到的牌
+    text-shadow: 0 0 3px;
+  }
+
+  .chosen {
+    //选中的准备弃掉的牌
+    border-style: solid;
+  }
+
+  .group {
+    //已经显示出来的牌
+    border-style: solid;
+  }
+}
+
+.actionList {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: row;
+
+  button {
+    height: 100%;
+    font-size: 30px;
+    margin: 0 5px;
+  }
+}
+
+.right {
+  padding: 20px;
+  box-sizing: border-box;
+
+  .Card {
+    font-size: 30px;
+    user-select: auto;
+  }
+}
+
+.CardProbability {
+  font-size: 30px;
+}
