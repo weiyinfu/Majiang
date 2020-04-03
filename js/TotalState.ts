@@ -1,5 +1,5 @@
 /**
- * 暴力计算胡牌局面的个数
+ * 计算胡牌局面的个数
  * */
 import {BIG, iteratePatterns} from "./ai/MyJudger";
 
@@ -35,7 +35,7 @@ function huPaiCount() {
 }
 
 function bruteforceIterate() {
-    //遍历全部胡牌局面,需要160s
+    //遍历全部胡牌局面,需要120s
     let total = 0
     const begTime = new Date().getTime()
     const a = BIG;

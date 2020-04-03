@@ -1,28 +1,33 @@
 /**
- * 麻将调度器，不能阻塞
+ * 麻将调度器
  */
 import {CardMap, getCards, hu, sortCards} from "./Card";
 import {
     AnGangRequest,
-    EatReply,
+    AnGangResponse,
     EatRequest,
-    FetchReply,
-    FetchReplyMode,
+    EatResponse,
     FetchRequest,
+    FetchResponse,
+    FetchResponseMode,
     MessageType,
     MingGangRequest,
     OverMode,
     OverRequest,
-    PengReply,
+    OverResponse,
     PengRequest,
-    ReleaseReply,
-    ReleaseReplyMode,
+    PengResponse,
     ReleaseRequest,
-    StartRequest
+    ReleaseResponse,
+    ReleaseResponseMode,
+    Request,
+    Response,
+    StartRequest,
+    StartResponse
 } from "./MajiangProtocol";
 import {Handler} from "./Handler";
 import {v4 as uuid} from "uuid";
-import {flat, getCount, li, ll, remove, shuffle} from "./Utils";
+import {flat, getCount, li, ll, range, remove, shuffle} from "./Utils";
 
 function contain<T>(big: T[], small: T[]) {
     //判断big牌列表中是否包含small中的全部牌
@@ -34,21 +39,21 @@ function contain<T>(big: T[], small: T[]) {
     return true
 }
 
-function releaseModePriority(opType: ReleaseReplyMode): number {
+function releaseModePriority(opType: ReleaseResponseMode): number {
     //对弃牌的操作的优先级
     switch (opType) {
-        case ReleaseReplyMode.PASS:
+        case ReleaseResponseMode.PASS:
             return 0;
-        case ReleaseReplyMode.EAT:
+        case ReleaseResponseMode.EAT:
             return 1;
-        case ReleaseReplyMode.PENG:
+        case ReleaseResponseMode.PENG:
             return 2;
-        case ReleaseReplyMode.MING_GANG:
+        case ReleaseResponseMode.MING_GANG:
             return 3;
-        case ReleaseReplyMode.HU:
+        case ReleaseResponseMode.HU:
             return 4;
         default:
-            throw 'unknown op type ' + opType;
+            throw new Error('unknown op type ' + opType);
     }
 }
 
@@ -65,35 +70,37 @@ export class MajiangServer {
     //各个用户接口
     users: Handler[] = [];
 
-    async broadcast(messageGenerator: (turn: number) => any): Promise<any[]> {
-        return new Promise((resolve: (responses: any[]) => void, reject: ((error: string) => void)) => {
-            const responses: any[] = li(4, null);
+    broadcast(messageGenerator: (turn: number) => Request): Promise<Response[]> {
+        return new Promise((resolve: (responses: Response[]) => void) => {
+            const responses: Response[] = new Array(this.USER_COUNT);
+            const got = new Set<number>();
             for (let userId = 0; userId < this.USER_COUNT; userId++) {
                 const token = uuid();
                 const message = messageGenerator(userId);
                 message.token = token;
-                this.users[userId].postMessage(message);
+                //注意：应该先设置好onMessage，再调用postMessage，否则有一定概率出错（在各个用户与server同步的情况下，肯定出错）
                 this.users[userId].onMessage = (resp) => {
                     if (resp.token !== token) {
-                        throw '收到错误消息，token不对';
+                        throw new Error('收到错误消息，token不对');
                     }
                     if (resp.type !== message.type) {
-                        throw "回复的消息类型与请求类型应该一致";
+                        throw new Error("回复的消息类型与请求类型应该一致");
                     }
                     //把消息放到合适的位置
                     responses[userId] = resp;
-                    const waiting = responses.filter(x => x === null).length;
-                    if (waiting === 0) {
+                    got.add(userId)
+                    if (got.size === this.USER_COUNT) {
                         //如果各个用户都回复了，那么执行下一步
                         resolve(responses);
                     }
                 }
+                this.users[userId].postMessage(message);
             }
         });
     }
 
 
-    newGame(users: Handler[]) {
+    async newGame(users: Handler[]) {
         this.users = users;
         this.USER_COUNT = users.length;
         this.pile = getCards();
@@ -102,36 +109,34 @@ export class MajiangServer {
         this.rubbish = [];
         this.shown = ll(this.USER_COUNT);
         this.anGang = ll(this.USER_COUNT);
-        for (let userId = 0; userId < this.USER_COUNT; userId++) {
+        range(this.USER_COUNT).forEach(userId => {
             let userCards = this.pile.splice(0, this.CARD_COUNT);
             this.hand.push(userCards);
-        }
-        this.broadcast(turn => {
+        })
+        const responses = <StartResponse[]>await this.broadcast(turn => {
             const req: StartRequest = {
                 type: MessageType.START,
-                cards: this.hand[turn],
+                cards: this.hand[turn].slice(),
                 turn: turn,
                 token: "",
                 userCount: this.USER_COUNT,
             };
             return req;
-        }).then(() => {
-            //总是从第0号用户开始摸牌
-            this.doFetch(0).then(() => {
-                console.log(`游戏结束`);
-                //执行一项校验，检查游戏过程中牌是否合理，最终的牌数应该和开局时的牌数相同
-                let allCards: string[] = flat([this.pile, this.shown, this.hand, this.rubbish, li(4, this.anGang)]);
-                if (sortCards(getCards()).join('') !== sortCards(allCards).join('')) {
-                    throw `游戏状态错误`;
-                }
-            });
-        });
+        })
+        //总是从第0号用户开始摸牌
+        const winner = await this.doFetch(0);
+        //执行一项校验，检查游戏过程中牌是否合理，最终的牌数应该和开局时的牌数相同
+        let allCards: string[] = flat([this.pile, this.shown, this.hand, this.rubbish, li(4, this.anGang)]);
+        if (sortCards(getCards()).join('') !== sortCards(allCards).join('')) {
+            throw new Error(`游戏状态错误`);
+        }
+        return winner;
     }
 
-    async doFetch(fetcher: number): Promise<any> {
-        //从牌堆摸一张牌
+    async doFetch(fetcher: number): Promise<number> {
+        //从牌堆摸一张牌，返回胜利者的ID
         if (this.pile.length === 0) {
-            const responses = await this.broadcast(turn => {
+            const responses = <OverResponse[]>await this.broadcast(turn => {
                 const resp: OverRequest = {
                     winner: -1,
                     type: MessageType.OVER,
@@ -140,26 +145,26 @@ export class MajiangServer {
                 }
                 return resp;
             });
-            return;
+            return -1;
         }
-        const card = this.pile.splice(0, 1)[0]
-        this.hand[fetcher].push(card);
-        const responses = await this.broadcast(t => {
+        const fetched = this.pile.splice(0, 1)[0]
+        this.hand[fetcher].push(fetched);
+        const responses = <FetchResponse[]>await this.broadcast(t => {
             const req: FetchRequest = {
                 type: MessageType.FETCH,
-                card: t === fetcher ? card : "",
+                card: t === fetcher ? fetched : "",
                 turn: fetcher,
                 token: "",
             };
             return req;
         });
         //消息校验
-        this.validateFetchReply(responses, card, fetcher);
-        const fetchReply = <FetchReply>responses[fetcher];
-        switch (fetchReply.mode) {
-            case FetchReplyMode.AN_GANG: {
+        this.validateFetchResponse(responses, fetched, fetcher);
+        const fetchResp = responses[fetcher];
+        switch (fetchResp.mode) {
+            case FetchResponseMode.AN_GANG: {
                 //从手牌中移掉四张牌
-                const responses = await this.broadcast(turn => {
+                const responses = <AnGangResponse[]>await this.broadcast(turn => {
                     const resp: AnGangRequest = {
                         turn: fetcher,
                         token: '',
@@ -167,17 +172,17 @@ export class MajiangServer {
                     };
                     return resp;
                 });
-                remove(this.hand[fetcher], li(4, card));
-                this.anGang[fetcher].push(card);
+                remove(this.hand[fetcher], li(4, fetched));
+                this.anGang[fetcher].push(fetched);
                 //对于暗杠无需校验，只需要通知一下即可，暗杠完了之后继续当前用户的摸牌弃牌
                 return this.doFetch(fetcher);
             }
-            case FetchReplyMode.RELEASE: {
-                return this.doRelease(fetcher, fetchReply.release);
+            case FetchResponseMode.RELEASE: {
+                return this.doRelease(fetcher, fetchResp.release);
             }
-            case FetchReplyMode.HU_SELF: {
+            case FetchResponseMode.HU_SELF: {
                 //自摸糊了
-                const responses = await this.broadcast(turn => {
+                const responses = <OverResponse[]>await this.broadcast(turn => {
                     const req: OverRequest = {
                         type: MessageType.OVER,
                         winner: fetcher,
@@ -186,21 +191,21 @@ export class MajiangServer {
                     };
                     return req;
                 });
-                break;
+                return fetcher;
             }
-            //pass类型的reply在validate的时候就会报错
+            //pass类型的response在validate的时候就会报错
             default: {
-                throw `unknown ${fetchReply.mode}`;
+                throw new Error(`unknown ${fetchResp.mode}`);
             }
         }
     }
 
-    async doRelease(sender: number, release: string): Promise<any> {
-        //用户sender弃牌release
+    async doRelease(sender: number, release: string): Promise<number> {
+        //用户sender弃牌release，返回胜利者的ID
         const releaseId = this.hand[sender].indexOf(release);
         this.hand[sender].splice(releaseId, 1);
         //通知各个AI，有人弃了若干张牌
-        const responses = await this.broadcast((turn) => {
+        const responses = <ReleaseResponse[]>await this.broadcast((turn) => {
             const req: ReleaseRequest = {
                 type: MessageType.RELEASE,
                 turn: sender,
@@ -210,7 +215,7 @@ export class MajiangServer {
             return req;
         });
         //消息校验，验证所有用户的消息都是合法的
-        this.validateReleaseReply(responses, sender, release);
+        this.validateReleaseResponse(responses, sender, release);
         let receiver: number = 0;
         //因为胡牌存在截胡规则，所以从当前用户开始转，只有遇到更高优先级才改变receiver
         for (let i = 0; i < this.USER_COUNT; i++) {
@@ -219,52 +224,50 @@ export class MajiangServer {
                 receiver = i;
             }
         }
-        const releaseResp: ReleaseReply = responses[receiver];
+        const releaseResp: ReleaseResponse = responses[receiver];
         switch (releaseResp.mode) {
-            case ReleaseReplyMode.PASS: {
+            case ReleaseResponseMode.PASS: {
                 this.rubbish.push(release);
                 return this.doFetch((sender + 1) % this.USER_COUNT);
             }
-            case ReleaseReplyMode.PENG: {
+            case ReleaseResponseMode.PENG: {
                 remove(this.hand[receiver], li(2, release));//从手牌删除掉，放到明牌里面
                 this.shown[receiver].push(li(3, release));
-                return this.broadcast(turn => {
+                const responses = <PengResponse[]>await this.broadcast(turn => {
                     const req: PengRequest = {
                         type: MessageType.PENG,
                         turn: receiver,
                         token: "",
                     };
                     return req;
-                }).then(responses => {
-                    //参数校验
-                    this.validatePengReply(responses, receiver);
-                    //完成碰牌之后receiver需要弃牌
-                    const pengReply = responses[receiver];
-                    return this.doRelease(receiver, pengReply.release);
-                });
+                })
+                //参数校验
+                this.validatePengResponse(responses, receiver);
+                //完成碰牌之后receiver需要弃牌
+                const pengResp = responses[receiver];
+                return await this.doRelease(receiver, pengResp.release);
             }
-            case ReleaseReplyMode.MING_GANG: {
+            case ReleaseResponseMode.MING_GANG: {
                 //如果杠牌了
                 remove(this.hand[receiver], li(3, release));//从手牌删除掉，放到明牌里面
                 this.shown[receiver].push(li(4, release));
-                return this.broadcast(turn => {
+                const responses = this.broadcast(turn => {
                     const req: MingGangRequest = {
                         type: MessageType.MING_GANG,
                         turn: receiver,
                         token: "",
                     };
                     return req;
-                }).then(responses => {
-                    //明杠不需要弃牌，也不需要参数校验，需要重新摸牌弃牌
-                    return this.doFetch(receiver);
-                });
+                })
+                //明杠不需要弃牌，也不需要参数校验，需要重新摸牌弃牌
+                return await this.doFetch(receiver);
             }
-            case ReleaseReplyMode.EAT: {
+            case ReleaseResponseMode.EAT: {
                 const cards = releaseResp.show;
                 remove(this.hand[receiver], cards);
                 cards.push(release);
                 this.shown[receiver].push(cards);
-                return this.broadcast(turn => {
+                const responses = <EatResponse[]>await this.broadcast(turn => {
                     const req: EatRequest = {
                         type: MessageType.EAT,
                         turn: receiver,
@@ -272,16 +275,15 @@ export class MajiangServer {
                         token: "",
                     };
                     return req;
-                }).then(responses => {
-                    this.validateEatReply(responses, sender, receiver);
-                    const resp = <EatReply>responses[receiver];
-                    return this.doRelease(receiver, resp.release);
-                });
+                })
+                this.validateEatResponse(responses, sender, receiver);
+                const resp = <EatResponse>responses[receiver];
+                return this.doRelease(receiver, resp.release);
             }
-            case ReleaseReplyMode.HU: {
+            case ReleaseResponseMode.HU: {
                 //如果胡牌了
                 this.hand[receiver].push(release);
-                return this.broadcast(turn => {
+                const responses = await this.broadcast(turn => {
                     const req: OverRequest = {
                         type: MessageType.OVER,
                         winner: receiver,
@@ -289,48 +291,47 @@ export class MajiangServer {
                         mode: OverMode.HU,
                     };
                     return req;
-                }).then(responses => {
-                    //通知别人胡牌之后不需要校验回复
-                    return;
-                });
+                })
+                //通知别人胡牌之后不需要校验回复responses
+                return receiver;
             }
             default: {
-                throw `未知的弃牌回复模式${releaseResp.mode}`;
+                throw new Error(`未知的弃牌回复模式${releaseResp.mode}`);
             }
         }
     }
 
-    validateReleaseReply(responses: ReleaseReply[], sender: number, release: string) {
+    validateReleaseResponse(responses: ReleaseResponse[], sender: number, release: string) {
         //校验弃牌回复
         for (let receiver = 0; receiver < this.USER_COUNT; receiver++) {
             const response = responses[receiver];
             if (response.type !== MessageType.RELEASE) {
-                throw "消息类型错误";
+                throw new Error("消息类型错误");
             }
             switch (response.mode) {
-                case ReleaseReplyMode.PASS: {
+                case ReleaseResponseMode.PASS: {
                     if (response.show.length) {
-                        throw `你一边说过，一边又尝试出牌`;
+                        throw new Error(`你一边说过，一边又尝试出牌`);
                     }
                     break;
                 }
-                case ReleaseReplyMode.EAT: {
+                case ReleaseResponseMode.EAT: {
                     if (receiver === sender) {
-                        throw "你怎么可以吃自己刚刚弃的牌";
+                        throw new Error("你怎么可以吃自己刚刚弃的牌");
                     }
                     if (!response.show) {
-                        throw `你既然说吃，为什么不显示出自己的牌来?`
+                        throw new Error(`你既然说吃，为什么不显示出自己的牌来?`)
+                    }
+                    if (response.show.length !== 2) {
+                        throw new Error("展示的牌必须是2张");
                     }
                     //只有下家可以吃
-                    if (response.show.length !== 2) {
-                        throw "展示的牌必须是2张";
-                    }
-                    if ((sender + 1) % 4 !== receiver) {
-                        throw "只有下家才能吃牌"
+                    if ((sender + 1) % this.USER_COUNT !== receiver) {
+                        throw new Error("只有下家才能吃牌");
                     }
                     if (!contain(this.hand[receiver], response.show)) {
                         //接收者必须包含它所展示的牌，不能撒谎
-                        throw "你展示了你没有的牌，所以不能吃牌";
+                        throw new Error("你展示了你没有的牌，所以不能吃牌");
                     }
                     let a = response.show.slice();
                     a.push(release);
@@ -338,141 +339,141 @@ export class MajiangServer {
                     //吃了的牌必须是顺子
                     if (!(CardMap[a[0]].sparseIndex + 1 == CardMap[a[1]].sparseIndex &&
                         CardMap[a[0]].sparseIndex + 2 == CardMap[a[2]].sparseIndex)) {
-                        throw `AI不能吃但是它返回吃，构不成顺子`;
+                        throw new Error(`AI不能吃但是它返回吃，构不成顺子`);
                     }
                     break;
                 }
-                case ReleaseReplyMode.PENG: {
+                case ReleaseResponseMode.PENG: {
                     if (receiver === sender) {
-                        throw "你怎么可以吃自己刚刚弃的牌";
+                        throw new Error("你怎么可以吃自己刚刚弃的牌");
                     }
                     if (!response.show) {
-                        throw "碰牌show数组不应为空";
+                        throw new Error("碰牌show数组不应为空");
                     }
                     if (response.show.length != 0) {
-                        throw "碰牌无需展示牌";
+                        throw new Error("碰牌无需展示牌");
                     }
                     //只有刻子才能碰
                     if (getCount(this.hand[receiver], release) < 2) {
-                        throw "碰牌的前提是你必须至少有两张相同的牌";
+                        throw new Error("碰牌的前提是你必须至少有两张相同的牌");
                     }
                     break;
                 }
-                case ReleaseReplyMode.MING_GANG: {
+                case ReleaseResponseMode.MING_GANG: {
                     if (receiver === sender) {
-                        throw "不能明杠自己刚刚的弃牌";
+                        throw new Error("不能明杠自己刚刚的弃牌");
                     }
                     if (!response.show) {
-                        throw "show数组不能为null，必须是一个空数组"
+                        throw new Error("show数组不能为null，必须是一个空数组")
                     }
                     if (response.show.length != 0) {
-                        throw "show 数组应该为空";
+                        throw new Error("show 数组应该为空");
                     }
                     if (getCount(this.hand[receiver], release) < 3) {
-                        throw "明杠必须至少有三张相同的牌";
+                        throw new Error("明杠必须至少有三张相同的牌");
                     }
                     break;
                 }
-                case ReleaseReplyMode.HU: {
+                case ReleaseResponseMode.HU: {
                     const cards = this.hand[receiver].slice();
                     cards.push(release);
                     sortCards(cards);
                     if (!hu(cards)) {
-                        throw `你根本胡不了牌，你为啥报胡牌？${JSON.stringify(cards)}`;
+                        throw new Error(`你根本胡不了牌，你为啥报胡牌？${JSON.stringify(cards)}`);
                     }
                     break;
                 }
                 default: {
-                    throw `未知的回复类型${response}`;
+                    throw new Error(`未知的回复类型${response}`);
                 }
             }
         }
     }
 
-    validatePengReply(responses: PengReply[], receiver: number) {
+    validatePengResponse(responses: PengResponse[], receiver: number) {
         //校验碰牌之后的回复
         for (let i = 0; i < this.USER_COUNT; i++) {
             const response = responses[i];
             if (response.type !== MessageType.PENG) {
-                throw "消息类型错误";
+                throw new Error("消息类型错误");
             }
             if (i === receiver) {
                 if (response.release) {
                     if (this.hand[receiver].indexOf(response.release) === -1) {
-                        throw `你怎么可以弃你没有的牌`;
+                        throw new Error(`你怎么可以弃你没有的牌`);
                     }
                 } else {
-                    throw "碰完之后该你弃牌了";
+                    throw new Error("碰完之后该你弃牌了");
                 }
             } else {
                 if (response.release) {
-                    throw "不该你弃牌你弃什么牌";
+                    throw new Error("不该你弃牌你弃什么牌");
                 }
             }
         }
     }
 
-    validateFetchReply(responses: FetchReply[], card: string, turn: number) {
+    validateFetchResponse(responses: FetchResponse[], card: string, turn: number) {
         for (let i = 0; i < this.USER_COUNT; i++) {
             const response = responses[i];
             if (response.type !== MessageType.FETCH) {
-                throw "消息类型错误";
+                throw new Error("消息类型错误");
             }
             switch (response.mode) {
-                case FetchReplyMode.RELEASE: {
-                    if (turn !== i) throw `别人刚摸了一张牌你弃什么牌`;
+                case FetchResponseMode.RELEASE: {
+                    if (turn !== i) throw new Error(`别人刚摸了一张牌你弃什么牌`);
                     //如果是当前用户的id
-                    if (!response.release) throw "该你弃牌你咋不起牌";
+                    if (!response.release) throw new Error("该你弃牌你咋不弃牌");
                     if (this.hand[i].indexOf(response.release) === -1) {
-                        throw "你咋还能弃你没有的牌";
+                        throw new Error("你咋还能弃你没有的牌");
                     }
                     break;
                 }
-                case FetchReplyMode.AN_GANG: {
-                    if (turn !== i) throw `别人刚摸了一张牌你怎么能杠牌`;
+                case FetchResponseMode.AN_GANG: {
+                    if (turn !== i) throw new Error(`别人刚摸了一张牌你怎么能杠牌`);
                     if (i === turn) {
                         //用户已经拥有的牌的个数
                         if (getCount(this.hand[i], card) < 3) {
-                            throw "你无权暗杠";
+                            throw new Error("你无权暗杠");
                         }
                     } else {
-                        throw "刚才不是你摸牌，你凭啥暗杠";
+                        throw new Error("刚才不是你摸牌，你凭啥暗杠");
                     }
                     break;
                 }
-                case FetchReplyMode.HU_SELF: {
-                    if (turn !== i) throw `别人刚摸了一张牌你${i}怎么可能胡牌`;
+                case FetchResponseMode.HU_SELF: {
+                    if (turn !== i) throw new Error(`别人刚摸了一张牌你${i}怎么可能胡牌`);
                     //自摸胡校验
                     sortCards(this.hand[turn]);
                     if (!hu(this.hand[turn])) {
-                        throw "你没有胡为啥说胡了";
+                        throw new Error("你没有胡为啥说胡了");
                     }
                     break;
                 }
-                case FetchReplyMode.PASS: {
+                case FetchResponseMode.PASS: {
                     //如果不是你摸牌你就应该是pass
                     if (turn === i) {
-                        throw `该你采取行动了，你不能pass`
+                        throw new Error(`该你采取行动了，你不能pass`)
                     }
                 }
             }
         }
     }
 
-    validateEatReply(responses: any[], sender: number, receiver: number) {
+    validateEatResponse(responses: EatResponse[], sender: number, receiver: number) {
         for (let i = 0; i < this.USER_COUNT; i++) {
-            const resp = <EatReply>responses[i];
+            const resp = responses[i];
             if (resp.type !== MessageType.EAT) {
-                throw "消息类型错误";
+                throw new Error("消息类型错误");
             }
             if (i === receiver) {
-                if (!resp.release) throw "该你弃牌了你咋不弃牌";
+                if (!resp.release) throw new Error("该你弃牌了你咋不弃牌");
                 if (this.hand[receiver].indexOf(resp.release) === -1) {
-                    throw "你怎么可以弃你没有的牌";
+                    throw new Error("你怎么可以弃你没有的牌");
                 }
             } else {
                 if (resp.release) {
-                    throw "不该你弃牌，你弃什么牌";
+                    throw new Error("不该你弃牌，你弃什么牌");
                 }
             }
         }

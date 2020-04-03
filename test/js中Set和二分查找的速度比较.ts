@@ -1,4 +1,4 @@
-import {randInt, range, shuffle} from "../js/Utils";
+import {randInt, range} from "../js/Utils";
 
 /**
  * 结论：当元素个数较少时，set比较快

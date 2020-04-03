@@ -4,8 +4,9 @@ const Card_1 = require("../js/Card");
 const Utils_1 = require("../js/Utils");
 const Judger_1 = require("../js/Judger");
 const MyJudger_1 = require("../js/ai/MyJudger");
-const judger = new MyJudger_1.MyJudger();
-function test0() {
+const GreedyJudger_1 = require("../js/ai/GreedyJudger");
+const SearchJudger_1 = require("../js/ai/SearchJudger");
+function test0(judger) {
     MyJudger_1.PRINT.SHOW_TARGET = true;
     const hand = ["东", "南", "南", "西", "西", "2万", "2万", "3万", "8万", "8条", "9条", "1筒", "3筒", "9筒"];
     let a = Utils_1.li(34, 4);
@@ -32,9 +33,9 @@ function getState(hand) {
         anGangCount: 0
     };
 }
-function releaseWhich(hand) {
+function releaseWhich(hand, judger) {
     if (hand.length % 3 !== 2)
-        throw `error length of hand`;
+        throw new Error(`error length of hand`);
     let best = {
         score: Judger_1.MIN_SCORE,
         release: '',
@@ -61,8 +62,12 @@ function releaseWhich(hand) {
 }
 function test1() {
     MyJudger_1.PRINT.SHOW_TARGET = true;
-    const handString = "中,中,中,3万,5万,6万,8万,9万,4条,6条,9条,1筒,1筒,9筒";
+    const handString = "2万,3万,4万,2筒,2筒,2筒,5筒,6筒,7筒,8筒,8筒,9筒,9筒,东";
     const hand = handString.split(',');
-    releaseWhich(hand);
+    const j = new GreedyJudger_1.GreedyJudger();
+    const jj = new SearchJudger_1.SearchJudger(j, 3);
+    releaseWhich(hand, j);
+    console.log('==========');
+    releaseWhich(hand, jj);
 }
 test1();

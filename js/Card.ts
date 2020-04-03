@@ -7,8 +7,8 @@ export const Majiang: string[] = Array.from('🀀🀁🀂🀃🀄🀅🀆🀇�
 function buildNames() {
     //构建麻将名称列表
     let names: string[] = Array.from("东南西北中发白");
-    for (var i = 0; i < 3; i++) {
-        for (var j = 0; j < 9; j++) {
+    for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 9; j++) {
             names.push((j + 1) + "万条筒"[i]);
         }
     }
@@ -20,7 +20,7 @@ export const NAMES = buildNames();
 export let Sounds: string[] = NAMES.slice(0, 7 + 3 * 9);//花牌没有声音
 export const UNKNOWN: string = NAMES[NAMES.length - 1];//未知的那张牌
 
-class Card {
+export class Card {
     color: string = "";//麻将的颜色，只用于UI显示
     image: string = "";//麻将的UTF8字符，只用于UI显示
     sound: string = "";//麻将的声音，只用于UI显示
@@ -83,12 +83,12 @@ export function getCard(part: number, ordinal: number): Card {
     //根据区域和序数获取麻将
     if (part < 7) {
         if (ordinal != 0) {
-            throw 'error';
+            throw new Error(`error card ordinal error ordinal=${ordinal} part=${part}`);
         }
         return CardMap[NAMES[part]];
     } else {
         if (!(ordinal >= 0 && ordinal < 9)) {
-            throw 'error';
+            throw  new Error(`error ordinal error :ordinal=${ordinal} part=${part}`);
         }
         const ind = (part - 7) * 9 + 7 + ordinal;
         return CardMap[NAMES[ind]];

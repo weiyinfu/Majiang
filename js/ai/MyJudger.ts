@@ -10,20 +10,20 @@ import {shuziPai} from "../TableHu";
 const MAX_STEPS = 100000;//到达胜利的步数
 type PatternCallback = (cardCount: number, pattern: number[][]) => void;
 
+export function buildIndex(patterns: number[][]) {
+    let cardCount2pattern: Map<number, number[][]> = new Map<number, number[][]>();
+    patterns.forEach(i => {
+        const s = i.reduce((o, n) => o + n, 0)
+        let now = cardCount2pattern.get(s);
+        now ? now.push(i) : cardCount2pattern.set(s, [i]);
+    })
+    return cardCount2pattern;
+}
+
 export function buildReverseIndex() {
     //10个分区，每个分区都有可能有解的局面
     //为每个分区建立 牌的张数=>patterns倒排索引
     //字牌pattern列表
-    function buildIndex(patterns: number[][]) {
-        let cardCount2pattern: Map<number, number[][]> = new Map<number, number[][]>();
-        patterns.forEach(i => {
-            const s = i.reduce((o, n) => o + n, 0)
-            let now = cardCount2pattern.get(s);
-            now ? now.push(i) : cardCount2pattern.set(s, [i]);
-        })
-        return cardCount2pattern;
-    }
-
     const zi = buildIndex([[0], [2], [3]]);
     const shuzi = buildIndex(shuziPai);
     return li(7, zi).concat(li(3, shuzi));
@@ -40,9 +40,9 @@ export function vectorize(a: string[]) {
     const v: number[] = li(34, 0);
     a.forEach(x => {
         const card = CardMap[x];
-        if (!card) throw `no card ${x}`;
+        if (!card) throw new Error(`no card ${x}`);
         if (card.index < 0 || card.index >= 34) {
-            throw `error card ${x}`;
+            throw new Error(`error card ${x}`);
         }
         v[card.index]++
     })
@@ -50,8 +50,8 @@ export function vectorize(a: string[]) {
 }
 
 export function stringify(a: number[]) {
-    //把牌向量转换成字符串数组
-    if (a.length !== 34) throw 'error';
+    //把牌向量转换成字符串数组，返回的手牌必然是有序的
+    if (a.length !== 34) throw new Error('error');
     let cards: string[] = [];
     for (let i = 0; i < a.length; i++) {
         cards = cards.concat(li(a[i], NAMES[i]));
@@ -61,7 +61,7 @@ export function stringify(a: number[]) {
 
 function diff(target: number[], now: number[]) {
     //计算差牌，从now到target需要新摸到哪些牌
-    if (target.length !== now.length) throw 'error';
+    if (target.length !== now.length) throw new Error('error');
     const c: number[] = new Array(target.length);
     for (let i = 0; i < target.length; i++) {
         c[i] = Math.max(target[i] - now[i], 0);
@@ -298,18 +298,19 @@ export class MyJudger implements Judger {
         //暗杠会造成局面数爆炸，所以暂时不考虑暗杠，暗杠需要猜牌
         //TODO：此处可以优化，别人暗杠的牌可以进行猜测别人暗杠的是什么牌
         //首先把牌按照10个区域放好，逐个区域处理
+        if (hand.length % 3 !== 1) throw new Error(`手牌个数应该模三余一 ${hand.join(',')}`);
         const handVector = vectorize(hand);
         let bestPatterns: number[][] = [];
         let minSteps = MAX_STEPS;//最差的情况是把牌全部替换掉
         let total = 0;
         const MAX_CARD_COUNT = hand.length + 1;//胡牌时手中的牌数
         if ([0, 2].indexOf(MAX_CARD_COUNT % 3) === -1) {
-            throw `目标牌数错误${MAX_CARD_COUNT}`;
+            throw  new Error(`目标牌数错误${MAX_CARD_COUNT}`);
         }
         PatternSearcher.visitNeibors(handVector, MAX_CARD_COUNT, state, ((cardCount, pattern) => {
             total++;
             if (cardCount > MAX_CARD_COUNT) {
-                throw 'error';
+                throw  new Error(`error ${cardCount}>${MAX_CARD_COUNT}`);
             }
             if (cardCount < MAX_CARD_COUNT) return;
             const huPattern = flat(pattern);//目标牌型

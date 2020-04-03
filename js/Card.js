@@ -6,8 +6,8 @@ exports.Majiang = Array.from('🀀🀁🀂🀃🀄🀅🀆🀇🀈🀉🀊🀋�
 function buildNames() {
     //构建麻将名称列表
     let names = Array.from("东南西北中发白");
-    for (var i = 0; i < 3; i++) {
-        for (var j = 0; j < 9; j++) {
+    for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 9; j++) {
             names.push((j + 1) + "万条筒"[i]);
         }
     }
@@ -29,6 +29,7 @@ class Card {
         this.sparseIndex = 0; //稀疏下标，取值为part*100+ordinal，稀疏下标的作用是快速判断连子，它是part和ordinal的组合
     }
 }
+exports.Card = Card;
 function buildCardMap() {
     const CardMap = {};
     const cards = [];
@@ -78,13 +79,13 @@ function getCard(part, ordinal) {
     //根据区域和序数获取麻将
     if (part < 7) {
         if (ordinal != 0) {
-            throw 'error';
+            throw new Error(`error card ordinal error ordinal=${ordinal} part=${part}`);
         }
         return exports.CardMap[exports.NAMES[part]];
     }
     else {
         if (!(ordinal >= 0 && ordinal < 9)) {
-            throw 'error';
+            throw new Error(`error ordinal error :ordinal=${ordinal} part=${part}`);
         }
         const ind = (part - 7) * 9 + 7 + ordinal;
         return exports.CardMap[exports.NAMES[ind]];

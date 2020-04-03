@@ -1,40 +1,38 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const MajiangServer_1 = require("./MajiangServer");
-const ai_worker_1 = __importDefault(require("./ai.worker"));
-const MajiangProtocol_1 = require("./MajiangProtocol");
-const Card_1 = require("./Card");
-const Handler_1 = require("./Handler");
-const Utils_1 = require("./Utils");
-const ctx = self;
+import {MajiangServer} from "./MajiangServer";
+import AiWorker from "./ai.worker";
+import {MessageType} from "./MajiangProtocol";
+import {sortCards} from "./Card";
+import {emptyHandler, Handler} from "./Handler";
+import {init} from "./Utils";
+
+const ctx: Worker = self as any;
 //默认随机数产生器的seed是固定的，如果是生产环境，需要设置随机数种子随机
-Utils_1.init(new Date().toString());
+init(new Date().toString());
 /**
  * 把调度器server封装成worker
  * server通过postMessage函数向各个worker发送消息
  * server会改写把worker的onmessage改写成onMessage函数
  * */
-const ui = {
-    onMessage: Handler_1.emptyHandler,
+const ui: Handler = {
+    onMessage: emptyHandler,//ui的onMessage由Server负责赋值
     //Server向UI发送消息
-    postMessage(message) {
+    postMessage(message: any) {
         ctx.postMessage(message);
     },
-};
+}
+
 const ais = [ui];
 for (let i = 0; i < 3; i++) {
-    const worker = new ai_worker_1.default();
+    const worker = new AiWorker();
     //为了区分大小写，需要重写一下onmessage函数
-    worker.onmessage = (e) => {
+    worker.onmessage = (e: any) => {
         worker.onMessage(e.data);
     };
     ais.push(worker);
 }
-const messageTypes = new Set(Object.values(MajiangProtocol_1.MessageType));
-const server = new MajiangServer_1.MajiangServer();
+
+const messageTypes = new Set(Object.values(MessageType));
+const server = new MajiangServer();
 /**
  * inited用于控制newGame的次数，禁止多次调用MajiangServer的newGame，因为
  * 麻将服务器是一个异步的过程。重复newGame可能导致异步错误。所以正确的做法应该
@@ -48,25 +46,23 @@ ctx.addEventListener("message", e => {
     if (messageTypes.has(message.type)) {
         //如果是麻将协议中的消息，那么需要发送给用户，因为这条消息是从ui.postMessage函数传过来的
         ui.onMessage(e.data);
-    }
-    else {
+    } else {
         switch (message.type) {
             case "newGame": {
                 // 注意：当newGame事件只能调用一次。
-                if (inited)
-                    throw new Error(`duplicate new Game`);
+                if (inited) throw new Error(`duplicate new Game`);
                 inited = true;
                 server.newGame(ais).then(winner => {
-                    console.log(`${winner}赢了`);
+                    console.log(`${winner}赢了`)
                 });
                 break;
             }
             case "status": {
                 //打印server端的状态，用于调试
-                console.log('手牌');
-                console.log(server.hand.map(x => Card_1.sortCards(x)));
-                console.log('牌堆' + server.pile.length);
-                console.log(server.pile);
+                console.log('手牌')
+                console.log(server.hand.map(x => sortCards(x)))
+                console.log('牌堆' + server.pile.length)
+                console.log(server.pile)
                 break;
             }
             default: {
@@ -76,4 +72,4 @@ ctx.addEventListener("message", e => {
     }
 }, false);
 //万物皆空，这一句话与import xxWorker from "xxx"遥相呼应，避免了各种ts类型检查报错
-exports.default = null;
+export default null as any;

@@ -1,6 +1,24 @@
+/**
+ * 工具函数集合
+ * */
+import seedrandom from "seedrandom";
+
+let $ = seedrandom('天下大事，为我所控');
+
+export function init(x: string) {
+    $ = seedrandom(x)
+}
+
+export function random() {
+    return $.quick();
+}
+
 export function randInt(beg: number, end: number) {
     //获取[beg,end)之间的随机整数
-    return Math.floor(Math.random() * (end - beg)) + beg
+    const sz = end - beg;
+    let v = $.int32() % sz;
+    if (v < 0) v += sz;
+    return v + beg;
 }
 
 export function swap<T>(a: T[], x: number, y: number) {
@@ -11,15 +29,15 @@ export function swap<T>(a: T[], x: number, y: number) {
 }
 
 export function shuffle<T>(a: T[]): void {
-    for (var i = 0; i < a.length; i++) swap(a, i, randInt(i, a.length));
+    for (let i = 0; i < a.length; i++) swap(a, i, randInt(i, a.length));
 }
 
 export function remove<T>(a: T[], removing: T[]): void {
     //移除数组a中的removing
     for (const i of removing) {
-        if (!i) throw 'baga';
+        if (!i) throw new Error('removing what');
         const ind = a.indexOf(i);
-        if (ind === -1) throw `removing non-exist element ${i}`;
+        if (ind === -1) throw new Error(`removing non-exist element ${i}`);
         a.splice(ind, 1)
     }
 }
@@ -61,12 +79,21 @@ export function flat(a: any[]) {
     return b;
 }
 
-export function range(n: number): number[] {
-    const a: number[] = []
-    for (let i = 0; i < n; i++) a.push(i)
-    return a
+export function range(n: number) {
+    return {
+        forEach(callback: (x: number) => void) {
+            for (let i = 0; i < n; i++)
+                callback(i);
+        },
+        map<T>(callback: (x: number) => T) {
+            const ans = []
+            for (let i = 0; i < n; i++) {
+                ans.push(callback(i));
+            }
+            return ans;
+        }
+    }
 }
-
 
 export function deepcopy<T>(o: T): T {
     return JSON.parse(JSON.stringify(o))

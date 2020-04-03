@@ -22,7 +22,7 @@ const webpackConfig = {
     },
     output: {
         path: distPath,
-        filename: "[name].js"
+        filename: "[name].js",
     },
     module: {
         rules: [
@@ -31,8 +31,9 @@ const webpackConfig = {
                 loader: "vue-loader"
             },
             {
-                test: /\.worker\.js$/, //以.worker.js结尾的文件将被worker-loader加载
-                use: {loader: 'worker-loader'}
+                test: /\.worker\.(js|ts)$/, //以.worker.js结尾的文件将被worker-loader加载
+                use: {loader: 'worker-loader'},
+
             },
             {
                 test: /\.css$/,
@@ -47,7 +48,7 @@ const webpackConfig = {
                 use: ['ts-loader']
             },
             {
-                test: /\.(png|jpg|gif|mp3|svg|ttf|woff|eot|woff2)$/,
+                test: /\.(png|jpg|gif|mp3|svg|ttf|woff|eot|woff2|ogg)$/,
                 loader: "url-loader",
                 options: {
                     name: "[name].[ext]?[hash]",
@@ -68,9 +69,6 @@ const webpackConfig = {
         new CopyWebpackPlugin([
             {
                 from: path.join(__dirname, "./public")
-            }, {
-                from: path.join(__dirname, './res'),
-                to: 'res'
             }
         ]),
         {

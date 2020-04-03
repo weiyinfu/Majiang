@@ -1,12 +1,12 @@
 import {CardMap} from "../js/Card";
 import {li, remove} from "../js/Utils";
-import {MIN_SCORE, State} from "../js/Judger";
-import {MyJudger, PRINT} from "../js/ai/MyJudger";
+import {Judger, MIN_SCORE, State} from "../js/Judger";
+import {PRINT} from "../js/ai/MyJudger";
+import {GreedyJudger} from "../js/ai/GreedyJudger";
+import {SearchJudger} from "../js/ai/SearchJudger";
 
 
-const judger = new MyJudger();
-
-function test0() {
+function test0(judger: Judger) {
     PRINT.SHOW_TARGET = true;
     const hand = ["东", "南", "南", "西", "西", "2万", "2万", "3万", "8万", "8条", "9条", "1筒", "3筒", "9筒"]
 
@@ -38,8 +38,8 @@ function getState(hand: string[]): State {
     }
 }
 
-function releaseWhich(hand: string[]) {
-    if (hand.length % 3 !== 2) throw `error length of hand`;
+function releaseWhich(hand: string[], judger: Judger) {
+    if (hand.length % 3 !== 2) throw new Error(`error length of hand`);
     let best = {
         score: MIN_SCORE,
         release: '',
@@ -67,9 +67,13 @@ function releaseWhich(hand: string[]) {
 
 function test1() {
     PRINT.SHOW_TARGET = true;
-    const handString = "中,中,中,3万,5万,6万,8万,9万,4条,6条,9条,1筒,1筒,9筒";
+    const handString = "2万,3万,4万,2筒,2筒,2筒,5筒,6筒,7筒,8筒,8筒,9筒,9筒,东";
     const hand = handString.split(',');
-    releaseWhich(hand);
+    const j = new GreedyJudger();
+    const jj = new SearchJudger(j, 3);
+    releaseWhich(hand, j);
+    console.log('==========')
+    releaseWhich(hand, jj);
 }
 
 test1();

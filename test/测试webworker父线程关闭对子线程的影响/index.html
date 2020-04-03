@@ -1,0 +1,23 @@
+<html>
+<head></head>
+<body>
+<div>
+    实验证明：父worker停止运行子worker也会停止运行。
+    打开控制台，点击按钮。可以看见父子两个worker都停止了运行。
+</div>
+<button onclick="shutup()">shut up!</button>
+<button onclick="click()">奇怪的按钮事件，调用click()不管用</button>
+</body>
+<script>
+    const worker = new Worker('./father.js')
+
+    function click() {
+        console.log('click is called')
+    }
+
+    function shutup() {
+        console.log('正在停止')
+        worker.terminate();
+    }
+</script>
+</html>

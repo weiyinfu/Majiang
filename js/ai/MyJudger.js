@@ -4,19 +4,20 @@ const Utils_1 = require("../Utils");
 const Card_1 = require("../Card");
 const TableHu_1 = require("../TableHu");
 const MAX_STEPS = 100000; //到达胜利的步数
+function buildIndex(patterns) {
+    let cardCount2pattern = new Map();
+    patterns.forEach(i => {
+        const s = i.reduce((o, n) => o + n, 0);
+        let now = cardCount2pattern.get(s);
+        now ? now.push(i) : cardCount2pattern.set(s, [i]);
+    });
+    return cardCount2pattern;
+}
+exports.buildIndex = buildIndex;
 function buildReverseIndex() {
     //10个分区，每个分区都有可能有解的局面
     //为每个分区建立 牌的张数=>patterns倒排索引
     //字牌pattern列表
-    function buildIndex(patterns) {
-        let cardCount2pattern = new Map();
-        patterns.forEach(i => {
-            const s = i.reduce((o, n) => o + n, 0);
-            let now = cardCount2pattern.get(s);
-            now ? now.push(i) : cardCount2pattern.set(s, [i]);
-        });
-        return cardCount2pattern;
-    }
     const zi = buildIndex([[0], [2], [3]]);
     const shuzi = buildIndex(TableHu_1.shuziPai);
     return Utils_1.li(7, zi).concat(Utils_1.li(3, shuzi));
@@ -33,9 +34,9 @@ function vectorize(a) {
     a.forEach(x => {
         const card = Card_1.CardMap[x];
         if (!card)
-            throw `no card ${x}`;
+            throw new Error(`no card ${x}`);
         if (card.index < 0 || card.index >= 34) {
-            throw `error card ${x}`;
+            throw new Error(`error card ${x}`);
         }
         v[card.index]++;
     });
@@ -43,9 +44,9 @@ function vectorize(a) {
 }
 exports.vectorize = vectorize;
 function stringify(a) {
-    //把牌向量转换成字符串数组
+    //把牌向量转换成字符串数组，返回的手牌必然是有序的
     if (a.length !== 34)
-        throw 'error';
+        throw new Error('error');
     let cards = [];
     for (let i = 0; i < a.length; i++) {
         cards = cards.concat(Utils_1.li(a[i], Card_1.NAMES[i]));
@@ -56,7 +57,7 @@ exports.stringify = stringify;
 function diff(target, now) {
     //计算差牌，从now到target需要新摸到哪些牌
     if (target.length !== now.length)
-        throw 'error';
+        throw new Error('error');
     const c = new Array(target.length);
     for (let i = 0; i < target.length; i++) {
         c[i] = Math.max(target[i] - now[i], 0);
@@ -283,18 +284,20 @@ class MyJudger {
         //暗杠会造成局面数爆炸，所以暂时不考虑暗杠，暗杠需要猜牌
         //TODO：此处可以优化，别人暗杠的牌可以进行猜测别人暗杠的是什么牌
         //首先把牌按照10个区域放好，逐个区域处理
+        if (hand.length % 3 !== 1)
+            throw new Error(`手牌个数应该模三余一 ${hand.join(',')}`);
         const handVector = vectorize(hand);
         let bestPatterns = [];
         let minSteps = MAX_STEPS; //最差的情况是把牌全部替换掉
         let total = 0;
         const MAX_CARD_COUNT = hand.length + 1; //胡牌时手中的牌数
         if ([0, 2].indexOf(MAX_CARD_COUNT % 3) === -1) {
-            throw `目标牌数错误${MAX_CARD_COUNT}`;
+            throw new Error(`目标牌数错误${MAX_CARD_COUNT}`);
         }
         PatternSearcher.visitNeibors(handVector, MAX_CARD_COUNT, state, ((cardCount, pattern) => {
             total++;
             if (cardCount > MAX_CARD_COUNT) {
-                throw 'error';
+                throw new Error(`error ${cardCount}>${MAX_CARD_COUNT}`);
             }
             if (cardCount < MAX_CARD_COUNT)
                 return;

@@ -1,23 +1,23 @@
 import {
-    AnGangReply,
+    AnGangResponse,
     AnGangRequest,
-    EatReply,
+    EatResponse,
     EatRequest,
-    FetchReply,
-    FetchReplyMode,
+    FetchResponse,
+    FetchResponseMode,
     FetchRequest,
     MessageType,
-    MingGangReply,
+    MingGangResponse,
     MingGangRequest,
     OverMode,
-    OverReply,
+    OverResponse,
     OverRequest,
-    PengReply,
+    PengResponse,
     PengRequest,
-    ReleaseReply,
-    ReleaseReplyMode,
+    ReleaseResponse,
+    ReleaseResponseMode,
     ReleaseRequest,
-    StartReply,
+    StartResponse,
     StartRequest
 } from "./MajiangProtocol";
 import {CardMap, hu, sortCards, UNKNOWN} from "./Card";
@@ -78,17 +78,17 @@ export class MajiangClient {
     me: number = 0;//我是第几个人
     turn: number = 0;//当前轮到谁
 
-    onEat(req: EatRequest): EatReply[] {
+    onEat(req: EatRequest): EatResponse[] {
         this.turn = req.turn;
         const {cards, turn} = req;
-        const actions: EatReply[] = []
+        const actions: EatResponse[] = []
         if (turn === this.me) {
             //如果吃牌成功的人是我，那么我需要从我的牌里面去掉一些牌
             remove(this.hand[this.me], cards.slice(0, cards.length - 1));
             this.shown[this.me].push(cards);
             //生成弃牌action列表
             new Set(this.hand[this.me]).forEach(card => {
-                const resp: EatReply = {
+                const resp: EatResponse = {
                     release: card,
                     token: req.token,
                     type: req.type
@@ -99,7 +99,7 @@ export class MajiangClient {
             //如果不是我，那么别人会亮出若干张牌
             this.hand[turn].splice(0, cards.length - 1);//最后一张是它新吃掉的牌
             this.shown[turn].push(cards);
-            const resp: EatReply = {
+            const resp: EatResponse = {
                 release: "",
                 token: req.token,
                 type: req.type
@@ -110,7 +110,7 @@ export class MajiangClient {
         return actions;
     }
 
-    onFetch(req: FetchRequest): FetchReply[] {
+    onFetch(req: FetchRequest): FetchResponse[] {
         //有人摸了一张牌
         this.turn = req.turn;
         this.pile--;//牌堆中牌数减少1
@@ -119,7 +119,7 @@ export class MajiangClient {
             this.rubbish.push(this.lastRelease);
             this.lastRelease = '';
         }
-        const actions: FetchReply[] = []
+        const actions: FetchResponse[] = []
         if (req.turn === this.me) {
             //如果是我，那么把这张牌放入我的手牌
             this.hand[this.me].push(req.card);
@@ -131,7 +131,7 @@ export class MajiangClient {
                     release: card,
                     token: req.token,
                     type: req.type,
-                    mode: FetchReplyMode.RELEASE
+                    mode: FetchResponseMode.RELEASE
                 });
             });
             if (hu(this.hand[this.me])) {
@@ -139,7 +139,7 @@ export class MajiangClient {
                     release: "",
                     token: req.token,
                     type: req.type,
-                    mode: FetchReplyMode.HU_SELF
+                    mode: FetchResponseMode.HU_SELF
                 });
             }
             if (getCount(this.hand[this.me], req.card) === 4) {
@@ -147,31 +147,31 @@ export class MajiangClient {
                     release: "",
                     token: req.token,
                     type: req.type,
-                    mode: FetchReplyMode.AN_GANG,
+                    mode: FetchResponseMode.AN_GANG,
                 });
             }
         } else {
             //如果不是我
-            if (req.card) throw `server是不是傻了，告诉我别人的牌`;
+            if (req.card) throw new Error(`server是不是傻了，告诉我别人的牌`);
             this.hand[req.turn].push(UNKNOWN);
             actions.push({
                 release: "",
                 token: req.token,
                 type: req.type,
-                mode: FetchReplyMode.PASS
+                mode: FetchResponseMode.PASS
             });
         }
         return actions;
     }
 
-    onOver(req: OverRequest): OverReply[] {
+    onOver(req: OverRequest): OverResponse[] {
         if (req.mode === OverMode.HU) {
             //如果是因为别人弃牌而胡牌
             this.hand[req.winner].push(this.lastRelease);
             this.lastRelease = '';
         } else if (req.mode === OverMode.NO_CARD) {
             if (this.pile !== 0) {
-                throw `client的牌没有变成0 ${this.pile}`;
+                throw new Error(`client的牌没有变成0 ${this.pile}`);
             }
         }
         //校验牌的个数是否符合预期
@@ -181,7 +181,7 @@ export class MajiangClient {
         }]
     }
 
-    onPeng(req: PengRequest): PengReply [] {
+    onPeng(req: PengRequest): PengResponse [] {
         this.turn = req.turn;
         this.shown[req.turn].push(li(3, this.lastRelease));
         const actions = [];
@@ -207,11 +207,11 @@ export class MajiangClient {
         return actions;
     }
 
-    onRelease(req: ReleaseRequest): ReleaseReply[] {
+    onRelease(req: ReleaseRequest): ReleaseResponse[] {
         this.turn = req.turn;
         this.lastRelease = req.card;
         this.release[req.turn].push(req.card);
-        const actions: ReleaseReply[] = []
+        const actions: ReleaseResponse[] = []
         if (req.turn === this.me) {
             //自己弃的牌自己不能管
             const ind = this.hand[this.me].indexOf(req.card);
@@ -222,10 +222,10 @@ export class MajiangClient {
             if (req.turn === (this.me - 1 + this.USER_COUNT) % this.USER_COUNT) {
                 //如果是我的上家，考虑是否可以吃牌
                 howToEat(this.hand[this.me], req.card).forEach(i => {
-                    const resp: ReleaseReply = {
+                    const resp: ReleaseResponse = {
                         token: req.token,
                         type: req.type,
-                        mode: ReleaseReplyMode.EAT,
+                        mode: ReleaseResponseMode.EAT,
                         show: i,
                     }
                     actions.push(resp);
@@ -236,30 +236,30 @@ export class MajiangClient {
             sortCards(cards);
             if (hu(cards)) {
                 //如果胡牌
-                const resp: ReleaseReply = {
+                const resp: ReleaseResponse = {
                     token: req.token,
                     type: req.type,
-                    mode: ReleaseReplyMode.HU,
+                    mode: ReleaseResponseMode.HU,
                     show: [],
                 }
                 actions.push(resp);
             }
             if (getCount(this.hand[this.me], req.card) >= 2) {
                 //如果可以碰
-                const resp: ReleaseReply = {
+                const resp: ReleaseResponse = {
                     token: req.token,
                     type: req.type,
-                    mode: ReleaseReplyMode.PENG,
+                    mode: ReleaseResponseMode.PENG,
                     show: [],
                 }
                 actions.push(resp);
             }
             if (getCount(this.hand[this.me], req.card) >= 3) {
                 //如果可以杠
-                const resp: ReleaseReply = {
+                const resp: ReleaseResponse = {
                     token: req.token,
                     type: req.type,
-                    mode: ReleaseReplyMode.MING_GANG,
+                    mode: ReleaseResponseMode.MING_GANG,
                     show: [],
                 }
                 actions.push(resp);
@@ -267,17 +267,17 @@ export class MajiangClient {
         }
 
         //无论有多少种action，都可以pass
-        const resp: ReleaseReply = {
+        const resp: ReleaseResponse = {
             token: req.token,
             type: req.type,
-            mode: ReleaseReplyMode.PASS,
+            mode: ReleaseResponseMode.PASS,
             show: [],
         }
         actions.push(resp);
         return actions;
     }
 
-    onStart(req: StartRequest): StartReply[] {
+    onStart(req: StartRequest): StartResponse[] {
         this.USER_COUNT = req.userCount;
         this.CARD_COUNT = req.cards.length;
         this.shown = ll(this.USER_COUNT);
@@ -288,20 +288,22 @@ export class MajiangClient {
         this.hand[this.me] = req.cards;
         this.turn = 0;//开局时轮到0号用户
         this.pile = 136 - this.USER_COUNT * this.CARD_COUNT;
+        this.lastRelease = '';
+        this.lastFetch = '';
         //初始化其它人的手牌
         for (let i = 0; i < this.USER_COUNT; i++) {
             if (i !== this.me) {
                 this.hand[i] = li(this.CARD_COUNT, UNKNOWN);
             }
         }
-        const resp: StartReply = {
+        const resp: StartResponse = {
             token: req.token,
             type: MessageType.START
         };
         return [resp];
     }
 
-    onMingGang(req: MingGangRequest): MingGangReply[] {
+    onMingGang(req: MingGangRequest): MingGangResponse[] {
         this.turn = req.turn;
         this.shown[req.turn].push(li(4, this.lastRelease));
         if (req.turn === this.me) {
@@ -309,7 +311,7 @@ export class MajiangClient {
         } else {
             this.hand[req.turn].splice(0, 4);
         }
-        const resp: MingGangReply = {
+        const resp: MingGangResponse = {
             token: req.token,
             type: req.type,
         };
@@ -317,7 +319,7 @@ export class MajiangClient {
         return [resp];
     }
 
-    onAnGang(req: AnGangRequest): AnGangReply[] {
+    onAnGang(req: AnGangRequest): AnGangResponse[] {
         this.turn = req.turn;
         if (req.turn === this.me) {
             this.anGang[req.turn].push(this.lastFetch);
@@ -326,7 +328,7 @@ export class MajiangClient {
             this.anGang[req.turn].push(UNKNOWN);
             this.hand[req.turn].splice(0, 4);
         }
-        const resp: AnGangReply = {
+        const resp: AnGangResponse = {
             token: req.token,
             type: req.type,
         };

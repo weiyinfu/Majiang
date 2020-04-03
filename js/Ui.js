@@ -22,7 +22,6 @@ function wrap(s) {
 }
 class Ui {
     constructor(vue) {
-        //用户操作
         this.messages = []; //从server发过来的消息
         this.that = null; //vue组件
         this.userNames = []; //用户名称
@@ -45,7 +44,7 @@ class Ui {
     }
     sendActions(actions) {
         if (actions.length === 0)
-            throw `无计可施`;
+            throw new Error(`无计可施`);
         if (actions.length === 1) {
             //如果用户只有一种决策，不用请示用户直接执行
             this.postMessage(actions[0]);
@@ -138,7 +137,7 @@ class Ui {
                 break;
             }
             default: {
-                throw `未知的消息类型 ${message.type}`;
+                throw new Error(`未知的消息类型 ${message.type}`);
             }
         }
     }

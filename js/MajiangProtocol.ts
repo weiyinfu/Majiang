@@ -1,6 +1,8 @@
-/*
-每一种回复都应该定义一种类型，这样能够使得不同回复便于更改
-每个Reply都有一个token字段用于标志此回复的正确性
+/**
+ * 每一种回复都应该定义一种类型，这样能够使得不同回复便于更改
+ * 每个Response都有一个token字段用于标志此回复的正确性
+ * 接口的设计应该就是设计一堆Request和Response，接口的设计应该以对象为主体，
+ * 而不是以函数为主体。每个函数只接受一个Request对象，返回一个Response对象。
  */
 export enum MessageType {
     START = "start",
@@ -14,7 +16,7 @@ export enum MessageType {
 }
 
 
-export enum ReleaseReplyMode {
+export enum ReleaseResponseMode {
     //对用户弃牌的反应
     EAT = "eat",
     PENG = "peng",
@@ -23,7 +25,7 @@ export enum ReleaseReplyMode {
     MING_GANG = "ming_gang",//明杠
 }
 
-export enum FetchReplyMode {
+export enum FetchResponseMode {
     //摸牌的用户的反应
     RELEASE = "release",//弃牌
     AN_GANG = "an_gang",//暗杠
@@ -38,50 +40,50 @@ export enum OverMode {
     NO_CARD = "no_card",//没牌了
 }
 
-export class ReleaseReply {
-    mode: ReleaseReplyMode = ReleaseReplyMode.PASS;
+export class ReleaseResponse {
+    mode: ReleaseResponseMode = ReleaseResponseMode.PASS;
     show: string[] = [];//需要显示的牌，只有吃牌的时候才要求显示show，因为碰牌和杠牌显然都是与弃牌相同
     token: string = "";
     type = MessageType.RELEASE;
 }
 
-export class FetchReply {
+export class FetchResponse {
     release: string = "";
     token: string = "";
     type = MessageType.FETCH;
-    mode: FetchReplyMode = FetchReplyMode.RELEASE;
+    mode: FetchResponseMode = FetchResponseMode.RELEASE;
 }
 
-export class EatReply {
+export class EatResponse {
     //收到吃牌消息后的回复，只有正在吃牌的人需要弃牌
     release: string = "";//吃完牌之后弃掉的牌
     token: string = "";
     type = MessageType.EAT;
 }
 
-export class PengReply {
+export class PengResponse {
     //收到碰牌消息后的回复，只有正在碰牌的人需要弃牌
     release: string = "";//碰完牌之后需要弃掉一张牌
     token: string = "";
     type = MessageType.PENG;
 }
 
-export class OverReply {
+export class OverResponse {
     token: string = "";
     type = MessageType.OVER;
 }
 
-export class StartReply {
+export class StartResponse {
     token: string = "";
     type = MessageType.START;
 }
 
-export class AnGangReply {
+export class AnGangResponse {
     token: string = "";
     type = MessageType.AN_GANG;
 }
 
-export class MingGangReply {
+export class MingGangResponse {
     token: string = "";
     type = MessageType.MING_GANG;
 }
@@ -145,3 +147,23 @@ export class MingGangRequest {
     token: string = "";
     turn: number = -1;
 }
+
+export type Request =
+    StartRequest
+    | FetchRequest
+    | AnGangRequest
+    | ReleaseRequest
+    | EatRequest
+    | PengRequest
+    | MingGangRequest
+    | OverRequest;
+
+export type Response =
+    StartResponse
+    | FetchResponse
+    | AnGangResponse
+    | ReleaseResponse
+    | EatResponse
+    | PengResponse
+    | MingGangResponse
+    | OverResponse;

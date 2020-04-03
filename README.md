@@ -3,7 +3,6 @@
 # 目录说明
 本项目主要基于前端技术栈实现。  
 * components：可视化组件
-* css:样式
 * doc：关于麻将的文档
 * js:主要逻辑
 * majiang：使用python探索麻将

@@ -1,33 +1,29 @@
-import {Handler} from "./Handler";
+import {emptyHandler, Handler, MessageFunction} from "./Handler";
 import {
-    AnGangReply,
     AnGangRequest,
-    EatReply,
+    AnGangResponse,
     EatRequest,
-    FetchReply,
-    FetchReplyMode,
+    EatResponse,
     FetchRequest,
+    FetchResponse,
+    FetchResponseMode,
     MessageType,
-    MingGangReply,
     MingGangRequest,
-    OverReply,
+    MingGangResponse,
     OverRequest,
-    PengReply,
+    OverResponse,
     PengRequest,
-    ReleaseReply,
-    ReleaseReplyMode,
+    PengResponse,
     ReleaseRequest,
-    StartReply,
-    StartRequest
+    ReleaseResponse,
+    ReleaseResponseMode,
+    StartRequest,
+    StartResponse
 } from "./MajiangProtocol";
-import {CardMap, UNKNOWN} from "./Card";
+import {CardMap, NAMES, UNKNOWN} from "./Card";
 import {MajiangClient} from "./MajiangClient";
 import {deepcopy, flat, li, randChoose, remove} from "./Utils";
 import {Judger, MIN_SCORE, State} from "./Judger";
-
-const PRINT = {
-    RELEASE_ACTION: true,
-}
 
 function getState(anGang: string[][],
                   myHand: string[],
@@ -41,54 +37,56 @@ function getState(anGang: string[][],
         else myAnGang = i;
     }
     flat([li(4, myAnGang), myHand, shown, rubbish]).forEach(i => {
-        a[CardMap[i].index]--;
+        const cardIndex = CardMap[i].index;
+        a[cardIndex]--;
+        if (a[cardIndex] < 0) {
+            throw new Error(`牌数不可能是0`);
+        }
     });
     return {a, anGangCount};
 }
 
 function only(actions: any[]) {
     //带有一个assert的函数
-    if (actions.length !== 1) throw `这不是个好AI`;
+    if (actions.length !== 1) throw new Error(`这不是个好AI`);
     return randChoose(actions);
 }
 
+export class ReleaseResult {
+    release: string = "";
+    score: number = 0;
+}
+
+export function releaseWhich(judger: Judger, hand: string[], state: State): ReleaseResult {
+    let best: ReleaseResult = {
+        release: '',
+        score: MIN_SCORE
+    }
+    new Set(hand).forEach(release => {
+        const han = hand.slice();
+        han.splice(hand.indexOf(release), 1);
+        const result = judger.judge(state, han);
+        if (result.score > best.score) {
+            best.score = result.score;
+            best.release = release;
+        }
+    })
+    return best;
+}
 
 export class Ai implements Handler {
     client: MajiangClient = new MajiangClient();
     judger: Judger;
-    postMessage: (message: any) => void;
+    postMessage: MessageFunction = emptyHandler;
 
-    constructor(judger: Judger, postMessage: (message: any) => void) {
+    constructor(judger: Judger) {
         this.judger = judger;
-        this.postMessage = postMessage;
     }
 
-    releaseWhich(): [string, number] {
+    releaseWhich(): ReleaseResult {
         const cli = this.client;
-        let best = {
-            card: '',
-            score: MIN_SCORE
-        }
-        new Set(cli.hand[cli.me]).forEach(release => {
-            const hand = cli.hand[cli.me].slice();
-            remove(hand, [release]);
-            const rubbish = cli.rubbish.slice();
-            rubbish.push(release);
-            const state = getState(cli.anGang, hand, cli.shown, cli.rubbish);
-            const result = this.judger.judge(state, hand);
-            if (result.score > best.score) {
-                best.score = result.score;
-                best.card = release;
-            }
-            if (PRINT.RELEASE_ACTION) {
-                console.log(`${this.client.me}号用户手牌：${hand.join(',')}
-如果弃牌"${release}"，则${JSON.stringify(result)}`)
-            }
-        });
-        if (PRINT.RELEASE_ACTION) {
-            console.log(`最佳弃牌"${best.card} 步数${best.score}"`)
-        }
-        return [best.card, best.score];
+        const state = getState(cli.anGang, cli.hand[cli.me], cli.shown, cli.rubbish);
+        return releaseWhich(this.judger, cli.hand[cli.me], state);
     }
 
     swallow(food: string[]): number {
@@ -99,7 +97,13 @@ export class Ai implements Handler {
         const shown = deepcopy(cli.shown)
         shown[cli.me].push(food)
         const state = getState(cli.anGang, hand, shown, cli.rubbish);
-        return this.judger.judge(state, hand).score;
+        if (food.length === 4) {
+            //如果是杠牌，则直接判断当前局面
+            return this.judger.judge(state, hand).score;
+        } else {
+            //吃碰之后必须弃牌
+            return releaseWhich(this.judger, hand, state).score;
+        }
     }
 
     anGang(fetched: string) {
@@ -112,40 +116,40 @@ export class Ai implements Handler {
         return this.judger.judge(state, hand).score;
     }
 
-    onStart(req: StartRequest): StartReply {
+    onStart(req: StartRequest): StartResponse {
         return only(this.client.onStart(req));
     }
 
-    onFetch(req: FetchRequest): FetchReply {
+    onFetch(req: FetchRequest): FetchResponse {
         let actions = this.client.onFetch(req);
         if (req.turn !== this.client.me) return only(actions);
         //如果轮到我，我就要选择最佳决策
-        const [releaseCard, releaseScore] = this.releaseWhich();
+        const releaseResult = this.releaseWhich();
         const best = {
-            action: actions.filter(act => act.mode === FetchReplyMode.RELEASE && act.release === releaseCard)[0],
-            score: releaseScore
+            action: actions.filter(act => act.mode === FetchResponseMode.RELEASE && act.release === releaseResult.release)[0],
+            score: releaseResult.score
         }
         for (const resp of actions) {
             let now = MIN_SCORE;
             switch (resp.mode) {
-                case FetchReplyMode.HU_SELF: {
+                case FetchResponseMode.HU_SELF: {
                     //如果能胡牌，直接胡
                     return resp;
                 }
-                case FetchReplyMode.PASS: {
-                    throw `自己摸牌了不能pass,MajiangClient生成决策错误`;
+                case FetchResponseMode.PASS: {
+                    throw new Error(`自己摸牌了不能pass,MajiangClient生成决策错误`);
                 }
-                case FetchReplyMode.RELEASE: {
+                case FetchResponseMode.RELEASE: {
                     //release在上面已经处理过了，此处可以直接跳过
                     continue;
                 }
-                case FetchReplyMode.AN_GANG: {
+                case FetchResponseMode.AN_GANG: {
                     //只有暗杠比较特殊，需要特殊处理
                     now = this.anGang(req.card);
                     break;
                 }
                 default: {
-                    throw `unknown reply mode ${resp.mode}`;
+                    throw new Error(`unknown reply mode ${resp.mode}`);
                 }
             }
             if (now > best.score) {
@@ -156,7 +160,7 @@ export class Ai implements Handler {
         return best.action;
     }
 
-    onRelease(req: ReleaseRequest): ReleaseReply {
+    onRelease(req: ReleaseRequest): ReleaseResponse {
         const actions = this.client.onRelease(req);
         if (req.turn === this.client.me)
             //如果是我弃的牌，那么我只能返回pass
@@ -169,33 +173,33 @@ export class Ai implements Handler {
         for (let act of actions) {
             let now = MIN_SCORE;
             switch (act.mode) {
-                case ReleaseReplyMode.PASS: {
+                case ReleaseResponseMode.PASS: {
                     const cli = this.client;
                     const state = getState(cli.anGang, cli.hand[cli.me], cli.shown, cli.rubbish);
                     now = this.judger.judge(state, cli.hand[cli.me]).score;
                     break;
                 }
-                case ReleaseReplyMode.EAT: {
+                case ReleaseResponseMode.EAT: {
                     now = this.swallow(act.show.concat([req.card]));
                     break;
                 }
-                case ReleaseReplyMode.PENG: {
+                case ReleaseResponseMode.PENG: {
                     now = this.swallow(li(3, req.card));
                     break;
                 }
-                case ReleaseReplyMode.MING_GANG: {
+                case ReleaseResponseMode.MING_GANG: {
                     now = this.swallow(li(4, req.card));
                     break;
                 }
-                case ReleaseReplyMode.HU: {
+                case ReleaseResponseMode.HU: {
                     return act;
                 }
                 default: {
-                    throw `error mode ${act.mode}`
+                    throw new Error(`error mode ${act.mode}`);
                 }
             }
             //如果两个操作相同，优先不选择pass，因为这样可以多获得一次摸牌的权利
-            if (now > best.score || (now == best.score && best.action.mode == ReleaseReplyMode.PASS)) {
+            if (now > best.score || (now == best.score && best.action.mode == ReleaseResponseMode.PASS)) {
                 best.score = now;
                 best.action = act;
             }
@@ -203,31 +207,31 @@ export class Ai implements Handler {
         return best.action;
     }
 
-    onEat(req: EatRequest): EatReply {
+    onEat(req: EatRequest): EatResponse {
         const actions = this.client.onEat(req);
         if (req.turn !== this.client.me)
             return only(actions)
-        const [releaseCard, releaseScore] = this.releaseWhich();
-        return actions.filter(resp => resp.release === releaseCard)[0];
+        const {release} = this.releaseWhich();
+        return actions.filter(resp => resp.release === release)[0];
     }
 
-    onPeng(req: PengRequest): PengReply {
+    onPeng(req: PengRequest): PengResponse {
         const actions = this.client.onPeng(req)
         if (req.turn !== this.client.me)
             return only(actions);
-        const [releaseCard, releaseScore] = this.releaseWhich();
-        return actions.filter(resp => resp.release === releaseCard)[0];
+        const {release} = this.releaseWhich();
+        return actions.filter(resp => resp.release === release)[0];
     }
 
-    onOver(req: OverRequest): OverReply {
+    onOver(req: OverRequest): OverResponse {
         return only(this.client.onOver(req));
     }
 
-    onMingGang(req: MingGangRequest): MingGangReply {
+    onMingGang(req: MingGangRequest): MingGangResponse {
         return only(this.client.onMingGang(req));
     }
 
-    onAnGang(req: AnGangRequest): AnGangReply {
+    onAnGang(req: AnGangRequest): AnGangResponse {
         return only(this.client.onAnGang(req));
     }
 
@@ -268,7 +272,7 @@ export class Ai implements Handler {
                 break;
             }
             default: {
-                throw `未知的请求类型${message.type}`;
+                throw new Error(`未知的请求类型${message.type}`);
             }
         }
         return resp;

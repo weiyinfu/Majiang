@@ -69,8 +69,7 @@
     /* Disallow inconsistently-cased references to the same file. */
   },
   "include": [
-    "js/*.ts",
-    "js/ai/*.ts",
+    "js/**/*.ts",
     "test/*.ts"
   ]
 }

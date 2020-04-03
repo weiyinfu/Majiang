@@ -11,6 +11,8 @@ import {
     OverRequest,
     PengRequest,
     ReleaseRequest,
+    Request,
+    Response,
     StartRequest
 } from "./MajiangProtocol";
 import {CardMap} from "./Card";
@@ -33,12 +35,11 @@ function wrap(s: string) {
 }
 
 export class Ui implements Handler {
-    //用户操作
     messages: string[] = [];//从server发过来的消息
     that: any = null;//vue组件
     userNames: string[] = [];//用户名称
     client: MajiangClient = new MajiangClient();
-    actions: any[] = [];
+    actions: Response[] = [];
 
     constructor(vue: any) {
         this.that = vue;
@@ -60,8 +61,8 @@ export class Ui implements Handler {
         this.that.$refs[sound][0].play();
     }
 
-    sendActions(actions: any[]): void {
-        if (actions.length === 0) throw `无计可施`;
+    sendActions(actions: Response[]): void {
+        if (actions.length === 0) throw new Error(`无计可施`);
         if (actions.length === 1) {
             //如果用户只有一种决策，不用请示用户直接执行
             this.postMessage(actions[0]);
@@ -70,7 +71,7 @@ export class Ui implements Handler {
         }
     }
 
-    postMessage(message: any): void {
+    postMessage(message: Response): void {
         this.that.server.postMessage(message);
     }
 
@@ -127,42 +128,42 @@ export class Ui implements Handler {
         this.sendActions(this.client.onAnGang(req));
     }
 
-    onMessage(message: any): void {
+    onMessage(message: Request): void {
         switch (message.type) {
             case MessageType.START: {
-                this.onStart(message);
+                this.onStart(<StartRequest>message);
                 break;
             }
             case MessageType.RELEASE: {
-                this.onRelease(message);
+                this.onRelease(<ReleaseRequest>message);
                 break;
             }
             case MessageType.PENG: {
-                this.onPeng(message);
+                this.onPeng(<PengRequest>message);
                 break;
             }
             case MessageType.EAT: {
-                this.onEat(message);
+                this.onEat(<EatRequest>message);
                 break;
             }
             case MessageType.OVER: {
-                this.onOver(message);
+                this.onOver(<OverRequest>message);
                 break;
             }
             case MessageType.FETCH: {
-                this.onFetch(message);
+                this.onFetch(<FetchRequest>message);
                 break;
             }
             case MessageType.MING_GANG: {
-                this.onMingGang(message);
+                this.onMingGang(<MingGangRequest>message);
                 break;
             }
             case MessageType.AN_GANG: {
-                this.onAnGang(message);
+                this.onAnGang(<AnGangRequest>message);
                 break;
             }
             default: {
-                throw `未知的消息类型 ${message.type}`;
+                throw new Error(`未知的消息类型 ${message.type}`);
             }
         }
     }

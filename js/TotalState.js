@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 /**
- * 暴力计算胡牌局面的个数
+ * 计算胡牌局面的个数
  * */
 const MyJudger_1 = require("./ai/MyJudger");
 function huPaiCount() {
@@ -36,7 +36,7 @@ function huPaiCount() {
     return ma;
 }
 function bruteforceIterate() {
-    //遍历全部胡牌局面,需要160s
+    //遍历全部胡牌局面,需要120s
     let total = 0;
     const begTime = new Date().getTime();
     const a = MyJudger_1.BIG;

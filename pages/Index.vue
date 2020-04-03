@@ -86,20 +86,23 @@
 </template>
 <script>
     import Card from "../components/Card.vue";
-    import ServerWorker from "../js/server.worker.js";
+    import ServerWorker from "../js/server.worker.ts";
     import {Ui} from "../js/Ui.ts";
-    import {FetchReplyMode, ReleaseReplyMode} from "../js/MajiangProtocol.ts";
+    import {FetchResponseMode, ReleaseResponseMode} from "../js/MajiangProtocol.ts";
     import CardString from "../components/CardString";
 
     const C = require('../js/Card.ts');
     //批量加载音频文件
     const audios = {
-        eat: '../res/女声动作/吃.mp3',
-        peng: '../res/女声动作/碰.mp3',
-        gang: '../res/女声动作/杠.mp3',
-        win: '../res/win.mp3',
-        lose: "../res/lose.mp3",
-        start: "../res/start.mp3",
+        eat: '女声动作/吃.mp3',
+        peng: '女声动作/碰.mp3',
+        gang: '女声动作/杠.mp3',
+        win: 'win.mp3',
+        lose: "lose.mp3",
+        start: "start.mp3",
+    }
+    for (let i in audios) {
+        audios[i] = require(`../res/${audios[i]}`).default;
     }
     for (let i of C.Sounds) {
         audios[i] = require(`../res/女声牌/${i}.mp3`).default;
@@ -115,8 +118,8 @@
                 ui: ui,
                 cli: ui.client,
                 chosen: -1,
-                FetchReplyMode,
-                ReleaseReplyMode,
+                FetchReplyMode: FetchResponseMode,
+                ReleaseReplyMode: ReleaseResponseMode,
                 C,
                 server: null,
                 audios,
@@ -190,4 +193,101 @@
         }
     };
 </script>
-<style lang="less" src="../css/index.less"/>
+<style lang="less">
+    html, body, #app {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    .Index {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: row;
+
+        .left {
+            width: 70%;
+            height: 100%;
+            overflow: auto;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .right {
+            width: 30%;
+            height: 100%;
+            overflow: auto;
+        }
+    }
+
+
+    .cardList {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        flex-wrap: wrap;
+
+        & > div {
+            display: flex;
+        }
+
+        .Card {
+            font-size: 40px;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+
+        .mine {
+            //我的手牌
+            font-size: 70px;
+        }
+
+        .lastFetch {
+            //上一次摸到的牌
+            text-shadow: 0 0 3px;
+        }
+
+        .chosen {
+            //选中的准备弃掉的牌
+            border-style: solid;
+        }
+
+        .group {
+            //已经显示出来的牌
+            border-style: solid;
+        }
+    }
+
+    .actionList {
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: row;
+
+        button {
+            height: 100%;
+            font-size: 30px;
+            margin: 0 5px;
+        }
+    }
+
+    .right {
+        padding: 20px;
+        box-sizing: border-box;
+
+        .Card {
+            font-size: 30px;
+            user-select: auto;
+        }
+    }
+
+    .CardProbability {
+        font-size: 30px;
+    }
+</style>

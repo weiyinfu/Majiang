@@ -1,8 +1,28 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
+/**
+ * 工具函数集合
+ * */
+const seedrandom_1 = __importDefault(require("seedrandom"));
+let $ = seedrandom_1.default('天下大事，为我所控');
+function init(x) {
+    $ = seedrandom_1.default(x);
+}
+exports.init = init;
+function random() {
+    return $.quick();
+}
+exports.random = random;
 function randInt(beg, end) {
     //获取[beg,end)之间的随机整数
-    return Math.floor(Math.random() * (end - beg)) + beg;
+    const sz = end - beg;
+    let v = $.int32() % sz;
+    if (v < 0)
+        v += sz;
+    return v + beg;
 }
 exports.randInt = randInt;
 function swap(a, x, y) {
@@ -13,7 +33,7 @@ function swap(a, x, y) {
 }
 exports.swap = swap;
 function shuffle(a) {
-    for (var i = 0; i < a.length; i++)
+    for (let i = 0; i < a.length; i++)
         swap(a, i, randInt(i, a.length));
 }
 exports.shuffle = shuffle;
@@ -21,10 +41,10 @@ function remove(a, removing) {
     //移除数组a中的removing
     for (const i of removing) {
         if (!i)
-            throw 'baga';
+            throw new Error('removing what');
         const ind = a.indexOf(i);
         if (ind === -1)
-            throw `removing non-exist element ${i}`;
+            throw new Error(`removing non-exist element ${i}`);
         a.splice(ind, 1);
     }
 }
@@ -70,10 +90,19 @@ function flat(a) {
 }
 exports.flat = flat;
 function range(n) {
-    const a = [];
-    for (let i = 0; i < n; i++)
-        a.push(i);
-    return a;
+    return {
+        forEach(callback) {
+            for (let i = 0; i < n; i++)
+                callback(i);
+        },
+        map(callback) {
+            const ans = [];
+            for (let i = 0; i < n; i++) {
+                ans.push(callback(i));
+            }
+            return ans;
+        }
+    };
 }
 exports.range = range;
 function deepcopy(o) {

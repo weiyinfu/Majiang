@@ -112,7 +112,7 @@ class MajiangClient {
                     release: card,
                     token: req.token,
                     type: req.type,
-                    mode: MajiangProtocol_1.FetchReplyMode.RELEASE
+                    mode: MajiangProtocol_1.FetchResponseMode.RELEASE
                 });
             });
             if (Card_1.hu(this.hand[this.me])) {
@@ -120,7 +120,7 @@ class MajiangClient {
                     release: "",
                     token: req.token,
                     type: req.type,
-                    mode: MajiangProtocol_1.FetchReplyMode.HU_SELF
+                    mode: MajiangProtocol_1.FetchResponseMode.HU_SELF
                 });
             }
             if (Utils_1.getCount(this.hand[this.me], req.card) === 4) {
@@ -128,20 +128,20 @@ class MajiangClient {
                     release: "",
                     token: req.token,
                     type: req.type,
-                    mode: MajiangProtocol_1.FetchReplyMode.AN_GANG,
+                    mode: MajiangProtocol_1.FetchResponseMode.AN_GANG,
                 });
             }
         }
         else {
             //如果不是我
             if (req.card)
-                throw `server是不是傻了，告诉我别人的牌`;
+                throw new Error(`server是不是傻了，告诉我别人的牌`);
             this.hand[req.turn].push(Card_1.UNKNOWN);
             actions.push({
                 release: "",
                 token: req.token,
                 type: req.type,
-                mode: MajiangProtocol_1.FetchReplyMode.PASS
+                mode: MajiangProtocol_1.FetchResponseMode.PASS
             });
         }
         return actions;
@@ -154,7 +154,7 @@ class MajiangClient {
         }
         else if (req.mode === MajiangProtocol_1.OverMode.NO_CARD) {
             if (this.pile !== 0) {
-                throw `client的牌没有变成0 ${this.pile}`;
+                throw new Error(`client的牌没有变成0 ${this.pile}`);
             }
         }
         //校验牌的个数是否符合预期
@@ -208,7 +208,7 @@ class MajiangClient {
                     const resp = {
                         token: req.token,
                         type: req.type,
-                        mode: MajiangProtocol_1.ReleaseReplyMode.EAT,
+                        mode: MajiangProtocol_1.ReleaseResponseMode.EAT,
                         show: i,
                     };
                     actions.push(resp);
@@ -222,7 +222,7 @@ class MajiangClient {
                 const resp = {
                     token: req.token,
                     type: req.type,
-                    mode: MajiangProtocol_1.ReleaseReplyMode.HU,
+                    mode: MajiangProtocol_1.ReleaseResponseMode.HU,
                     show: [],
                 };
                 actions.push(resp);
@@ -232,7 +232,7 @@ class MajiangClient {
                 const resp = {
                     token: req.token,
                     type: req.type,
-                    mode: MajiangProtocol_1.ReleaseReplyMode.PENG,
+                    mode: MajiangProtocol_1.ReleaseResponseMode.PENG,
                     show: [],
                 };
                 actions.push(resp);
@@ -242,7 +242,7 @@ class MajiangClient {
                 const resp = {
                     token: req.token,
                     type: req.type,
-                    mode: MajiangProtocol_1.ReleaseReplyMode.MING_GANG,
+                    mode: MajiangProtocol_1.ReleaseResponseMode.MING_GANG,
                     show: [],
                 };
                 actions.push(resp);
@@ -252,7 +252,7 @@ class MajiangClient {
         const resp = {
             token: req.token,
             type: req.type,
-            mode: MajiangProtocol_1.ReleaseReplyMode.PASS,
+            mode: MajiangProtocol_1.ReleaseResponseMode.PASS,
             show: [],
         };
         actions.push(resp);
@@ -269,6 +269,8 @@ class MajiangClient {
         this.hand[this.me] = req.cards;
         this.turn = 0; //开局时轮到0号用户
         this.pile = 136 - this.USER_COUNT * this.CARD_COUNT;
+        this.lastRelease = '';
+        this.lastFetch = '';
         //初始化其它人的手牌
         for (let i = 0; i < this.USER_COUNT; i++) {
             if (i !== this.me) {
