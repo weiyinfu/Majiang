@@ -82,6 +82,7 @@ export function generatePages(webpackConfig: { [index: string]: any }) {
         tem.genPath = path.join(__dirname, tem.genPath);
         //如果dist和gen不存在，创建之
         for (let dir of [tem.distPath, tem.genPath]) {
+            console.log(`ensure dir ${dir}`)
             ensureDir(dir);
         }
         if (!files || files.length === 0) {
