@@ -1,0 +1,63 @@
+<html>
+<head>
+    <meta charset="utf-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"/>
+
+    <script src="lib/poker.min.js"></script>
+</head>
+<body style="overflow: hidden;background-color: black;margin: 0;">
+<canvas></canvas>
+</body>
+<script>
+    function $(sel) {
+        return document.querySelector(sel)
+    }
+
+    var canva = $("canvas")
+    var context = canva.getContext("2d")
+
+
+    function drawPerson() {
+        var sz = Math.min(canva.width * 0.15, canva.height * 0.15)
+        context.drawPokerBack(canva.width * 0.5 - sz * 0.5, canva.height * 0.1, sz)
+        context.drawPokerBack(canva.width * 0.1 - sz * 0.5, canva.height * 0.5, sz)
+        context.drawPokerBack(canva.width * 0.9 - sz * 0.5, canva.height * 0.5, sz)
+    }
+
+    function drawCard(a) {
+        var bottomX = canva.width * 0.5, bottomY = canva.height * 0.8
+        var sz = Math.min(canva.width * 0.15, canva.height * 0.15)
+        var begX = bottomX - sz * a.length / 2
+        for (var i = 0; i < 13; i++) {
+            context.drawPokerCard(begX + i * sz, bottomY, sz, a[i]['suit'], a[i]['point'])
+        }
+    }
+
+    function randomChoose(a, cnt) {
+        return a[parseInt(Math.random() * a.length)]
+    }
+
+    function generateCard() {
+        var a = []
+        for (var i = 0; i < 13; i++) {
+            a.push({
+                suit: randomChoose(['diamonds', 'hearts', , 'spades', 'clubs']),
+                point: randomChoose(['A', 2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K', 'O', 'JOKER'])
+            })
+        }
+        return a
+    }
+
+    function resize() {
+        canva.width = document.body.clientWidth
+        canva.height = document.body.clientHeight
+        context.clearRect(0, 0, canva.width, canva.height)
+        drawPerson()
+        drawCard(generateCard())
+    }
+
+    window.onresize = resize
+    resize()
+</script>
+</html>

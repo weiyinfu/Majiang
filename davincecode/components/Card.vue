@@ -1,0 +1,39 @@
+一张带颜色的达芬奇密码牌
+<template>
+     <span class="Card" :style="getStyle()">
+        {{CardMap[card].image}}
+    </span>
+</template>
+<script>
+    import {CardMap} from "../Card";
+
+    export default {
+        props: {
+            card: {
+                type: String,
+                required: true
+            }
+        },
+        data() {
+            return {
+                CardMap
+            }
+        },
+        methods: {
+            getStyle() {
+                const ind = CardMap[this.card].ordinal & 1;
+                const colors = ['black', '#992222']
+                return {
+                    color: colors[ind],
+                }
+            }
+        },
+    }
+</script>
+<style>
+    .Card {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>

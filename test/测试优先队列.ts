@@ -1,4 +1,4 @@
-import {Topk} from "../js/Topk";
+import {Topk} from "../majiang/util/Topk";
 import seedrandom from "seedrandom";
 
 class Node {

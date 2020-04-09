@@ -1,24 +1,24 @@
+const {generatePages} = require("./conf/TemplateSystem");
 const VueLoaderPlugin = require("vue-loader/lib/plugin")
 const path = require("path")
-const fs = require("fs")
-const handlebars = require("handlebars")
-const chalk = require("chalk")
 const CopyWebpackPlugin = require("copy-webpack-plugin")
 const CompressionWebpackPlugin = require("compression-webpack-plugin")
-const webpack = require("webpack")
-const webpackConfigFilter = require("webpack-config-filter")
-
-const mode = "development"
-// const mode = "production"
+//mode是webpack后来添加的，而这里需要做些预处理，所以必须解析参数
+const argString = process.argv.join();
+let mode = "production";
+if (argString.indexOf('mode=development') !== -1) {
+    mode = "development";
+} else if (argString.indexOf("mode=production") !== -1) {
+    mode = "production";
+} else if (argString.indexOf("webpack-dev-server") !== -1) {
+    mode = "development";
+}
+console.log(`mode=${mode}`)
 const distPath = path.join(__dirname, "./dist")
-const genPath = path.join(__dirname, "gen")
-const development = mode === "development"
-const production = mode === "production"
-
 const webpackConfig = {
     mode: mode,
     entry: {
-        //entry通过扫描pages下的目录自动生成
+        //entry通过模板配置自动生成
     },
     output: {
         path: distPath,
@@ -32,8 +32,10 @@ const webpackConfig = {
             },
             {
                 test: /\.worker\.(js|ts)$/, //以.worker.js结尾的文件将被worker-loader加载
-                use: {loader: 'worker-loader'},
-
+                loader: 'worker-loader',
+                options: {
+                    name: "[name][hash].worker.js",
+                }
             },
             {
                 test: /\.css$/,
@@ -48,7 +50,7 @@ const webpackConfig = {
                 use: ['ts-loader']
             },
             {
-                test: /\.(png|jpg|gif|mp3|svg|ttf|woff|eot|woff2|ogg)$/,
+                test: /\.(png|jpg|gif|mp3|svg|ttf|woff|eot|woff2|ogg|wav)$/,
                 loader: "url-loader",
                 options: {
                     name: "[name].[ext]?[hash]",
@@ -60,19 +62,18 @@ const webpackConfig = {
     resolve: {
         extensions: [".ts", ".js", ".vue"],
         alias: {
-            vue: "vue/dist/vue.js"
+            vue: "vue/dist/vue.js",
         }
     },
     plugins: [
         new VueLoaderPlugin(),
-        new webpack.HotModuleReplacementPlugin(),
         new CopyWebpackPlugin([
             {
                 from: path.join(__dirname, "./public")
             }
         ]),
         {
-            condition: production,
+            condition: mode === "production",
             ifTrue: new CompressionWebpackPlugin({
                 test: new RegExp("\\.(" + ["js", "css"].join("|") + ")$"),
                 // asset: "[path].gz[hash]",
@@ -80,7 +81,7 @@ const webpackConfig = {
                 threshold: 10240,
                 minRatio: 0.8
             })
-        }
+        },
     ],
     devServer: {
         contentBase: distPath,
@@ -94,59 +95,6 @@ const webpackConfig = {
         historyApiFallback: {
             rewrites: [{from: /^\/$/, to: "/Index.html"}]
         }
-    },
-    externals: {
-        condition: production,
-        ifTrue: {
-            vue: "Vue",
-            "element-ui": "ELEMENT",
-            "vue-router": "VueRouter"
-        },
-        ifFalse: {}
     }
 }
-
-//handlebars编译，根据templatePath指定的模板位置，结合context生成到distPath目录下
-function handlebarsCompile(templatePath, distPath, context) {
-    const template = handlebars.compile(fs.readFileSync(templatePath).toString("utf8"))
-    const s = template(context)
-    fs.writeFileSync(distPath, s)
-    console.log(chalk.green(`compile from ${templatePath} to ${distPath} succssfully`))
-}
-
-//为每个Vue生成html文件
-function generatePages() {
-    //如果dist和gen不存在，创建之
-    for (var p of [distPath, genPath]) {
-        if (!fs.existsSync(p)) {
-            fs.mkdirSync(p)
-        }
-    }
-
-    for (var file of fs.readdirSync("./pages")) {
-        if (!file.endsWith(".vue")) continue
-        const filename = file.slice(0, file.length - ".vue".length)
-        const jsPath = path.join(genPath, `${filename}.js`)
-        const htmlPath = path.join(distPath, `${filename}.html`)
-        handlebarsCompile("index.html", htmlPath, {
-            production: webpackConfig.mode === "production",
-            main: `${filename}.js`
-        })
-        handlebarsCompile("main.js", jsPath, {
-            component: file
-        })
-        webpackConfig.entry[filename] = [
-            "./" + path.relative(__dirname, jsPath),
-            {
-                condition: development,
-                ifTrue: "element-ui/lib/theme-chalk/index.css"
-            }, {
-                condition: development,
-                ifTrue: "font-awesome/css/font-awesome.min.css"
-            }
-        ]
-    }
-}
-
-generatePages();
-module.exports = webpackConfigFilter(webpackConfig);
+module.exports = generatePages(webpackConfig);

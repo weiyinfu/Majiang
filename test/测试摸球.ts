@@ -1,4 +1,4 @@
-import {FetchBall} from "../js/ai/MyJudger";
+import {FetchBall} from "../majiang/ai/judger/MyJudger";
 
 const a = [2, 3, 3, 4];
 const target = [[2, 0, 1, 0], [1, 1, 2, 1], [0, 2, 2, 0]];

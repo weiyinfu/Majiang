@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const MyJudger_1 = require("../js/ai/MyJudger");
+const MyJudger_1 = require("../majiang/ai/judger/MyJudger");
 const a = [2, 3, 3, 4];
 const target = [[2, 0, 1, 0], [1, 1, 2, 1], [0, 2, 2, 0]];
 const res = MyJudger_1.FetchBall.accurate(a, target);

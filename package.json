@@ -2,9 +2,9 @@
   "name": "majiang",
   "version": "1.0.0",
   "description": "Vue模板",
-  "main": "main.js",
+  "main": "template/main.js",
   "directories": {
-    "lib": "lib"
+    "lib": "conf"
   },
   "dependencies": {
     "babel-cli": "^6.26.0",
@@ -42,7 +42,8 @@
     "webpack-cli": "^3.2.1",
     "webpack-dev-server": "^3.1.14",
     "webpack": "^4.29.0",
-    "webpack-config-filter": "^1.0.1"
+    "webpack-config-filter": "^1.0.1",
+    "webpack-dev-middleware": "latest"
   },
   "devDependencies": {},
   "scripts": {

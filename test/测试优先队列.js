@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const Topk_1 = require("../js/Topk");
+const Topk_1 = require("../majiang/util/Topk");
 const seedrandom_1 = __importDefault(require("seedrandom"));
 class Node {
     constructor(x) {

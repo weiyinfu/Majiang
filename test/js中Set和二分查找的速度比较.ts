@@ -1,4 +1,5 @@
-import {randInt, range} from "../js/Utils";
+import {randInt, range} from "../majiang/util/Utils";
+import {bisearch} from "../majiang/hu/BigTableHu";
 
 /**
  * 结论：当元素个数较少时，set比较快
@@ -17,22 +18,6 @@ console.log(`查询次数${querys.length}
 元素个数:${set.size}
 `)
 
-function bisearch(x: number) {
-    if (b[b.length - 1] < x) return false
-    if (b[0] > x) return false
-    let l = 0, r = b.length
-    let mid = 0
-    while (l + 1 < r) {
-        mid = (l + r) >> 1;
-        if (b[mid] < x) {
-            l = mid + 1;
-        } else {
-            r = mid;
-        }
-    }
-    return b[l] == x || b[r] === x
-}
-
 function main() {
     let beg = new Date().getTime()
     for (let i of querys) {
@@ -44,7 +29,7 @@ function main() {
     beg = new Date().getTime()
     for (let i of querys) {
         const x = randInt(0, MAXN);
-        const ans = bisearch(x);
+        const ans = bisearch(x, b);
     }
     end = new Date().getTime()
     console.log(`二分查找用时${end - beg}ms`)

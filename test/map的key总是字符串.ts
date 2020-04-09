@@ -23,3 +23,7 @@ for (let i in map.entries()) console.log(i)
 map.forEach((v, k) => {
     console.log(`${k}=${v}`)
 })
+//只要是for-in循环，必定是字符串
+for (let i in map) {
+    console.log(typeof i)
+}
