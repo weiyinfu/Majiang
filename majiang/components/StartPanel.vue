@@ -9,11 +9,15 @@
         <div class="chosen" title="开始的手牌">
             已选手牌：
             <card v-for="(i,ind) in hand" :card="i" :key="ind" @click.native="removeChosenCard(ind)"></card>
-            <el-button-group size="mini" style="float:right;">
-                <el-button title="复制手牌字符画" icon="fa fa-clipboard" @click="copyUtf8">
-                </el-button>
-                <el-button title="复制字符串" icon="fa fa-copy" @click="copyHand"></el-button>
-            </el-button-group>
+            <div style="float:right;">
+                <el-button @click="hand=[]" icon="fa fa-trash" size="mini">清空手牌</el-button>
+                <el-button-group>
+                    <el-button title="复制手牌字符画" size="mini" icon="fa fa-clipboard" @click="copyUtf8">
+                        复制图画
+                    </el-button>
+                    <el-button title="复制字符串" size="mini" icon="fa fa-copy" @click="copyHand">复制文本</el-button>
+                </el-button-group>
+            </div>
         </div>
         <div class="store" title="牌堆">
             牌堆：
