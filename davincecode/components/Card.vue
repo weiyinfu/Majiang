@@ -1,11 +1,11 @@
 一张带颜色的达芬奇密码牌
 <template>
      <span class="Card" :style="getStyle()">
-        {{CardMap[card].image}}
+        {{C.byName(card).image}}
     </span>
 </template>
 <script>
-    import {CardMap} from "../Card";
+    import {C} from "../Card";
 
     export default {
         props: {
@@ -16,12 +16,12 @@
         },
         data() {
             return {
-                CardMap
+                C
             }
         },
         methods: {
             getStyle() {
-                const ind = CardMap[this.card].ordinal & 1;
+                const ind = C.byName(this.card).ordinal & 1;
                 const colors = ['black', '#992222']
                 return {
                     color: colors[ind],

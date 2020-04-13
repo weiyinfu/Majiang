@@ -5,15 +5,21 @@ import {DavinceCodeServer} from "./DavinceCodeServer";
 import {li, randInt, range} from "../majiang/util/Utils";
 import {Ai} from "./Ai";
 import {Handler, ReverseHandler} from "../majiang/core/Handler";
+import {bestSolver, deepSolver, simpleSolver} from "./solver/BestSolver";
 
 
 async function compare(caseCount: number) {
     const server = new DavinceCodeServer();
-    const ais: Handler[] = range(3).map(x => new ReverseHandler(new Ai()));
+    const solvers = [
+        simpleSolver,
+        deepSolver,
+        simpleSolver,
+    ]
+    const ais: Handler[] = solvers.map(solver => new ReverseHandler(new Ai(solver)));
     const win = li(ais.length, 0);
     for (let i = 0; i < caseCount; i++) {
         const winner = await server.newGame(ais, randInt(0, 100).toString());
-        console.log(`winner is ${winner}`);
+        console.log(`round ${i} winner is ${winner}`);
         win[winner]++;
     }
     const table = []
@@ -26,6 +32,6 @@ async function compare(caseCount: number) {
     console.table(table);
 }
 
-compare(10000).then(() => {
+compare(100).then(() => {
     console.log('over');
 })

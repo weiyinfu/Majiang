@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const DavinceCodeProtocol_1 = require("./DavinceCodeProtocol");
-const Card_1 = require("./Card");
 class DavinceCodeClient {
     constructor() {
         this.hand = [];
@@ -52,31 +51,23 @@ class DavinceCodeClient {
     onFetch(req) {
         if (this.isDied(req.who))
             throw new Error(`${req.who} has died`);
-        if (req.who === this.me) {
-            //如果是我摸到牌了
-            if (req.what) { //如果我确实摸到牌了，此处牌堆里没有牌的时候，what为空
-                this.hand[this.me].push(req.what);
-                Card_1.sortCards(this.hand[this.me]);
-                if (this.hand[this.me].indexOf(req.what) !== req.which) {
-                    throw new Error(`client hand is different with server`);
-                }
-            }
-            //我必须叫牌
-            const resp = { call: DavinceCodeProtocol_1.EmptyCall(), token: req.token, type: req.type };
-            return [resp];
-        }
-        else {
-            if (req.what) { //如果牌堆里面有牌
-                this.hand[req.who].splice(req.which, 0, req.what);
-                //important!!更新badCall列表中元素的下标
-                for (let bad of this.badCalls) {
-                    if (bad.who === req.who) {
-                        if (bad.which >= req.which) {
-                            bad.which++;
-                        }
+        if (req.what) {
+            //如果牌堆里面有牌
+            this.hand[req.who].splice(req.which, 0, req.what);
+            //important!!更新badCall列表中元素的下标
+            for (let bad of this.badCalls) {
+                if (bad.who === req.who) {
+                    if (bad.which >= req.which) {
+                        bad.which++;
                     }
                 }
             }
+        }
+        if (req.who === this.me) {
+            //如果是我摸到牌了，我必须叫牌
+            return [{ call: DavinceCodeProtocol_1.EmptyCall(), token: req.token, type: req.type }];
+        }
+        else {
             return [{ call: null, type: req.type, token: req.token }];
         }
     }

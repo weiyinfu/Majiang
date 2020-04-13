@@ -1,4 +1,4 @@
-import {CardMap, getCards, hide, sortCards} from "./Card";
+import {C, getCards, hide, sortCards} from "./Card";
 import {deepcopy, init, ll, randInt, shuffle} from "../majiang/util/Utils";
 import {v4 as uuid} from "uuid";
 import {
@@ -37,18 +37,17 @@ export class DavinceCodeServer {
     broadcast(requestGetter: (turn: number) => Request): Promise<Response[]> {
         return new Promise(resolve => {
             const responses: Response [] = new Array(this.userCount);
-            const waiting = new Set<number>();
+            const got = new Set<number>();
             for (let userId = 0; userId < this.userCount; userId++) {
-                waiting.add(userId);
                 const token = uuid();
                 const req = requestGetter(userId);
                 req.token = token;
                 this.users[userId].onMessage = (resp: Response) => {
                     if (resp.token !== token) throw new Error("token不对");
                     if (resp.type !== req.type) throw new Error("type不对")
-                    waiting.delete(userId);
+                    got.add(userId)
                     responses[userId] = resp;
-                    if (waiting.size === 0) {
+                    if (got.size === this.userCount) {
                         resolve(responses)
                     }
                 }
@@ -215,7 +214,7 @@ export class DavinceCodeServer {
         if (call.which < 0 || call.which >= this.hand[call.who].length) {
             throw new Error(`call.which error ${call.which}`)
         }
-        if (!CardMap[call.what]) {
+        if (!C.byName(call.what)) {
             throw new Error(`call 的牌错误 ${call.what}`);
         }
     }

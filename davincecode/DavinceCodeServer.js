@@ -37,9 +37,8 @@ class DavinceCodeServer {
     broadcast(requestGetter) {
         return new Promise(resolve => {
             const responses = new Array(this.userCount);
-            const waiting = new Set();
+            const got = new Set();
             for (let userId = 0; userId < this.userCount; userId++) {
-                waiting.add(userId);
                 const token = uuid_1.v4();
                 const req = requestGetter(userId);
                 req.token = token;
@@ -48,9 +47,9 @@ class DavinceCodeServer {
                         throw new Error("token不对");
                     if (resp.type !== req.type)
                         throw new Error("type不对");
-                    waiting.delete(userId);
+                    got.add(userId);
                     responses[userId] = resp;
-                    if (waiting.size === 0) {
+                    if (got.size === this.userCount) {
                         resolve(responses);
                     }
                 };
@@ -230,7 +229,7 @@ class DavinceCodeServer {
         if (call.which < 0 || call.which >= this.hand[call.who].length) {
             throw new Error(`call.which error ${call.which}`);
         }
-        if (!Card_1.CardMap[call.what]) {
+        if (!Card_1.C.byName(call.what)) {
             throw new Error(`call 的牌错误 ${call.what}`);
         }
     }

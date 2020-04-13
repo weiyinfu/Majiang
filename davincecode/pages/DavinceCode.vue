@@ -34,8 +34,8 @@
     import Server from "../server.worker.js";
     import Card from "../components/Card";
     import {EmptyCall, MessageType} from "../DavinceCodeProtocol";
-    import {getAdvice} from "../Ai";
     import {isUnknown} from "../Card";
+    import {bestSolver} from "../solver/BestSolver";
 
     export default {
         components: {Card,},
@@ -75,7 +75,7 @@
                 this.server.postMessage({type: 'newGame'})
                 this.server.onmessage = event => {
                     this.ui.onMessage(event.data);
-                    this.advice = getAdvice(this.cli.hand, this.cli.badCalls);
+                    this.advice = bestSolver.getAdvice(this.cli.hand, this.cli.badCalls);
                     this.updateUi();
                 }
                 this.inited = true;

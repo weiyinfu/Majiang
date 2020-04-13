@@ -16,14 +16,20 @@ const DavinceCodeServer_1 = require("./DavinceCodeServer");
 const Utils_1 = require("../majiang/util/Utils");
 const Ai_1 = require("./Ai");
 const Handler_1 = require("../majiang/core/Handler");
+const BestSolver_1 = require("./solver/BestSolver");
 function compare(caseCount) {
     return __awaiter(this, void 0, void 0, function* () {
         const server = new DavinceCodeServer_1.DavinceCodeServer();
-        const ais = Utils_1.range(3).map(x => new Handler_1.ReverseHandler(new Ai_1.Ai()));
+        const solvers = [
+            BestSolver_1.simpleSolver,
+            BestSolver_1.deepSolver,
+            BestSolver_1.simpleSolver,
+        ];
+        const ais = solvers.map(solver => new Handler_1.ReverseHandler(new Ai_1.Ai(solver)));
         const win = Utils_1.li(ais.length, 0);
         for (let i = 0; i < caseCount; i++) {
             const winner = yield server.newGame(ais, Utils_1.randInt(0, 100).toString());
-            console.log(`winner is ${winner}`);
+            console.log(`round ${i} winner is ${winner}`);
             win[winner]++;
         }
         const table = [];
@@ -36,6 +42,6 @@ function compare(caseCount) {
         console.table(table);
     });
 }
-compare(10000).then(() => {
+compare(100).then(() => {
     console.log('over');
 });

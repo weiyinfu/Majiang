@@ -1,7 +1,8 @@
 import {Ai} from "./Ai";
+import {bestSolver} from "./solver/BestSolver";
 
 const ctx = self as any;
-const ai = new Ai();
+const ai = new Ai(bestSolver);
 ai.postMessage = (message) => {
     ctx.postMessage(message);
 };
