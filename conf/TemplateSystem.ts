@@ -61,8 +61,8 @@ function ensureDir(dir: string) {
     const father = path.dirname(dir);
     if (!fs.existsSync(father)) {
         ensureDir(father);
-        fs.mkdirSync(dir)
     }
+    fs.mkdirSync(dir)
 }
 
 export function generatePages(webpackConfig: { [index: string]: any }) {
